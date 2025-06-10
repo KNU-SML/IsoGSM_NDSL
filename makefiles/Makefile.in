@@ -1,0 +1,108 @@
+#
+#  Makefile to create executables for the NCEP forecast em.
+#
+#  'make gsm' to create global model executables.
+#  'make rsm' to create rsm executables
+#  'make gdas' to create gdas executables
+#
+#  'make con' to create contants.
+#  'make gdas_con' to create gdas contants.
+#
+#  'make clean_gsm' to clean up global model source codes compilation
+#  'make clean_rsm' to clean up rsm source codes compilation
+#  'make clean_gdas' to clean up gdas source codes compilation
+#  'make clean_con' to clean up constants (gdas and foreast).
+#  'make clean' to clean up all compilation related files and directories
+#
+#  Author:  Masao Kanamitsu
+#  
+#  Date: 9/16/1998
+#
+SHELL = @SHELL@
+AR = @AR@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CC = @CC@
+MKDIR = @MKDIR@
+CHMOD = @CHMOD@
+MAKE = @MAKE@
+#
+#  DIRECTORY STRUCTURE
+#
+#  ./src/[sfc][chgr][fcst][co2][mtn].../*.fp  Program files 
+#
+#  ./lib/w3lib_${MACHINE}  ... w3lib for given MACHINE
+#
+#  ./etc  ... Utilities, date.f, chgdates.f, grmap.f ... 
+#
+###################################################################
+#
+
+all : 
+	${CD} lib ; ${MAKE} || exit 8
+	${CD} etc ; ${MAKE} || exit 8
+	${CD} src ; ${MAKE} gsm || exit 8
+	${CD} src ; ${MAKE} rsm || exit 8
+	${CD} con ; ${MAKE} con || exit 8
+	${CD} con ; ${MAKE} romcon || exit 8
+	${CD} con ; ${MAKE} gcon || exit 8
+
+lib_ :
+	${CD} lib ; ${MAKE} || exit 8
+
+etc_ :
+	${CD} etc ; ${MAKE} || exit 8
+
+gsm : 
+	${CD} src ; ${MAKE} gsm || exit 8
+
+rsm : 
+	${CD} src ; ${MAKE} rsm || exit 8
+
+gdas : 
+	${CD} src ; ${MAKE} gdas || exit 8
+
+con_ :
+	${CD} con ; ${MAKE} con || exit 8
+
+gcon :
+	${CD} con ; ${MAKE} gcon || exit 8
+
+romcon :
+	${CD} con ; ${MAKE} romcon || exit 8
+
+clean :  
+	${CD} lib ; ${MAKE} clean
+	${CD} etc ; ${MAKE} clean
+	${CD} con ; ${MAKE} clean
+	- rm Makefile prepare
+
+dist_clean :  
+	${CD} lib ; ${MAKE} dist_clean
+	${CD} etc ; ${MAKE} dist_clean
+	${CD} con ; ${MAKE} dist_clean
+	${CD} src ; ${MAKE} dist_clean
+	- rm Makefile
+
+clean_src :
+	${CD} src ; ${MAKE} clean
+
+clean_gsm : 
+	${CD} src ; ${MAKE} clean_gsm
+
+clean_rsm : 
+	${CD} src ; ${MAKE} clean_rsm
+
+clean_gdas : 
+	${CD} src ; ${MAKE} clean_gdas
+
+clean_lib : 
+	${CD} lib ; ${MAKE} clean
+
+clean_etc : 
+	${CD} etc ; ${MAKE} clean
+
+clean_con : 
+	${CD} con ; ${MAKE} clean
+

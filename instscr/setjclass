@@ -1,0 +1,20 @@
+#!/bin/sh
+class=
+if [ -s .hist ] ; then
+        class=`grep "^class=" .hist | cut -d'=' -f2`
+fi
+if [ "$INSTITUTION" = ncar -a "$MACHINE" = ibmsp ] ; then
+	class=regular
+elif [ "$INSTITUTION" = nersc ] ; then 
+	class=premium
+elif [ "$INSTITUTION" = sdsc ] ; then 
+	class=express
+fi
+grep class= .hist >/dev/null 2>/dev/null
+rc=$?
+sed "s/class=.*/class=$class/g" .hist >tmp.$$
+if [ $rc -eq 0 ] ; then
+	mv tmp.$$ .hist	
+else
+	echo class=$class >>.hist
+fi

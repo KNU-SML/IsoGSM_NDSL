@@ -1,0 +1,33 @@
+#!/bin/sh
+modely=$model
+if [ "$couple" = yes ] ; then
+	modely=$model:cpl
+fi
+count=1
+for modelx in `echo $modely | sed 's/:/ /g'`
+do
+	runons=
+	eval runs_dir_$count=${modelx}_runs
+	runs_dirx=\$runs_dir_$count
+	runs_dirx=`eval echo $runs_dirx`
+	if [ -s $runs_dirx ] ; then
+		if [ "$continue" != yes ] ; then
+			echo "dirctory $runs_dirx exist."
+			echo -n "start new (n), Overwrite(o) or skip (s)? [return=o]==>"
+			read runons_$count
+		else
+			eval runons_$count=
+		fi
+		runo=\$runons_$count
+		runo=`eval echo $runo`
+		if [ "$runo" = n ] ; then
+			echo -n "Are you sure deleting $runs_dirx? ==>"
+			read yn
+			if [ "$yn" = y -o "$yn" = yes ] ; then
+				rm -rf $runs_dirx
+			fi
+		fi
+	fi
+	count=`expr $count + 1`
+done
+post_dir=post

@@ -1,0 +1,54 @@
+#!/bin/sh
+set -x
+#
+PROG=fcst
+#
+fh=`/rhome/yeong/test/svrtest/libs/etc/fhour sigit`
+#
+#  Execute forecast
+#
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/co2con           co2con
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/mtnvar           mtnvar
+ln -fs /rhome/yeong/test/svrtest/libs/con/o3prod.clim.asc        o3prod
+ln -fs /rhome/yeong/test/svrtest/libs/con/o3loss.clim.asc        o3loss
+ln -fs /rhome/yeong/test/svrtest/libs/con/tune.t42l18.amip.ewmrg tune
+ln -fs /rhome/yeong/test/svrtest/libs/con/gcmo3.asc              gcmo3
+ln -fs /rhome/yeong/test/svrtest/libs/con/flwdirGSWP2.one        flw
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/albaer.snl           albaer.snl
+rm -f $PROG.x
+
+if [ mpi = single -o mpi = thread ] ; then
+	executable=/rhome/yeong/test/svrtest/gsm/bin/fcst_t62k28.x
+else
+	executable=/rhome/yeong/test/svrtest/gsm/bin/fcst_t62k28_n$FCST_NPES.x
+fi
+if [ ! -s $executable ] ; then
+	echo $executable does not exist
+	exit 8
+fi
+ln -fs $executable $PROG.x
+
+here_dir=`pwd`
+if [ mpi = mpi -o mpi = hybrid ] ; then
+	/rhome/yeong/test/svrtest/gsm_runs/runscr/mpisub $PROG.x:$FCST_NPES:
+	cc=$?
+else
+	./$PROG.x 1>${PROG}out.ft$fh 2>&1
+	cc=$?
+fi
+if [ $cc -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+grep 'NaN' fcstout.ft$fh
+if [ $? -eq 0 ]; then
+	echo "The run has NaN crushed !!!" >> ERROR.out
+	exit 8
+fi
+grep ' nan ' fcstout.ft$fh
+if [ $? -eq 0 ]; then
+	echo "The run has nan crushed !!!" >> ERROR.out
+	exit 8
+fi
+grep '<WARNING>:' fcstout.ft$fh >>ERROR.out
+exit 0

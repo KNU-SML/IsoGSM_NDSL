@@ -1,0 +1,63 @@
+#!/bin/sh
+#
+PROG=ssi
+echo `date` -- $PROG started  >>ERROR.out
+#
+NLATH=`expr @LATG@ \/ 2 + 1`
+NITER=${NITER:=100}
+cat <<EOF >$PROG.parm
+ &NAMANAL
+ JCAP=@JCAP@,NLATH=$NLATH,NLON=@LONF@,NSIG=@LEVS@,
+ niter=$NITER,miter=1,
+ a=.25,.33,.42,.45,ampdivt=.7,dampdivt=.8,grosst=10.,grossst=10.,
+ grossw=10.,grossp=10.,grossq=5.,grosspw=10.,
+ &END
+EOF
+#
+rm sig.anl 2>/dev/null
+if [ @MACHINE@ = cray -o @MACHINE@ = t90 -o @MACHINE@ = t3e ] ; then
+	assign -R
+	assign -a oiqc.anl.bufr -Fcos                  @FTNID@30
+	assign -a guessig                              @FTNID@35 
+	if [ -s sig.anl-6hr ] ; then
+		assign -a sig.anl-6hr                        @FTNID@36
+	fi
+	assign -a guessfc                              @FTNID@37
+	assign -a @LIBS_DIR@/con/divterrs2812645    @FTNID@47
+	assign -a @LIBS_DIR@/con/v28newx            @FTNID@48
+	assign -a @LIBS_DIR@/con/eofs28126          @FTNID@49
+	assign -a sig.anl                              @FTNID@51
+	assign -a @FTNID@61                            @FTNID@61
+	assign -a scratch3                             @FTNID@98
+else
+	rm -f @FTNID@[0-9]* 2>/dev/null
+	ln -fs oiqc.anl.bufr                       @FTNID@30
+	ln -fs guessig                             @FTNID@35
+	if [ -s sig.anl-6hr ] ; then
+		ln -fs sig.anl-6hr                       @FTNID@36
+	fi
+	ln -fs guessfc                             @FTNID@37
+	ln -fs @LIBS_DIR@/con/divterrs2812645   @FTNID@47
+ 	ln -fs @LIBS_DIR@/con/v28newx.asc       @FTNID@48
+	ln -fs @LIBS_DIR@/con/eofs28126         @FTNID@49
+	ln -fs sig.anl                             @FTNID@51
+	ln -fs @FTNID@61                           @FTNID@61
+	ln -fs scratch3                            @FTNID@98
+fi
+if [ @MACHINE@ = cray -o @MACHINE@ = t90 -o @MACHINE@ = t3e ] ; then
+	NCPUS=1
+	export NCPUS
+fi
+if [ @MACHINE@ = sgi ] ; then
+	unlimit
+fi
+rm -f $PROG.x
+ln -fs @SRCS_DIR@/bin/${PROG}.x $PROG.x
+./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+if [ @MACHINE@ != cray -a @MACHINE@ != t90 -o @MACHINE@ != t3e ] ; then
+	rm -f @FTNID@[0-9]* 2>/dev/null
+fi

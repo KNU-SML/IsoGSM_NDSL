@@ -1,0 +1,24 @@
+#!/bin/sh
+ncpu_per_node=1
+if [ -s .hist ] ; then
+        ncpu_per_node=`grep "^ncpu_per_node=" .hist | cut -d'=' -f2`
+fi
+if [ "$INSTITUTION" = ncar -a "$MACHINE" = ibmsp ] ; then
+	ncpu_per_node=8
+elif [ "$NICKNAME" = compas ] ; then
+	ncpu_per_node=2
+elif [ "$NICKNAME" = atlas ] ; then
+	ncpu_per_node=8
+elif [ "$INSTITUTINO" = sio -a "$MACHINE" = mac ] ; then
+	ncpu_per_node=2
+elif [ "$MACHINE" = es ] ; then
+	ncpu_per_node=8
+fi
+grep ncpu_per_node= .hist >/dev/null 2>/dev/null
+rc=$?
+sed "s/ncpu_per_node=.*/ncpu_per_node=$ncpu_per_node/g" .hist >tmp.$$
+if [ $rc -eq 0 ] ; then
+	mv tmp.$$ .hist	
+else
+	echo ncpu_per_node=$ncpu_per_node >>.hist
+fi

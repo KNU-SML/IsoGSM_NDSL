@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+if [ -z "$NHMDT" ] ; then
+	DX=`grep '^ *DX=' /rhome/yeong/test/svrtest/def/def_gsm/gsm62k28/domain.card | cut -d '=' -f2 | \
+			cut -d '.' -f1 | sed 's/ *//g'`
+	echo DX=$DX
+	if [ $DX -eq 10000 ] ; then
+		NHMDT=36
+	elif [ $DX -eq 5000 ] ; then
+		NHMDT=24
+	elif [ $DX -eq 2000 ] ; then
+		NHMDT=12
+	elif [ $DX -eq 1000 ] ; then
+		NHMDT=8
+	elif [ $DX -eq 500 ] ; then
+		NHMDT=4
+	elif [ $DX -eq 200 ] ; then
+		NHMDT=2
+	elif [ $DX -eq 100 ] ; then
+		NHMDT=1
+	fi
+	NHMDT=$NHMDT
+	echo NHMDT=$NHMDT
+	if [ -z "$NHMDT" ] ; then
+		echo "NHMDT cannot be determined automatically from DX"
+		exit 8
+	fi
+fi
+#
+

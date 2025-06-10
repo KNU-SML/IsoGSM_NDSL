@@ -1,0 +1,17 @@
+#!/bin/sh
+count=1
+for modelx in `echo $model | sed 's/:/ /g'`
+do
+	cd $currdir
+	srcs_dirx=\$srcs_dir_$count
+	srcs_dirx=`eval echo $srcs_dirx`
+	if [ "$srcons" != s ] ; then
+		cd $srcs_dirx
+		echo "Executing configure-model in $srcs_dirx"
+		./configure-model || exit 8
+		make || exit 8
+		echo "$modelx: finished making executables"
+	fi
+	cd $currdir
+	count=`expr $count + 1`
+done

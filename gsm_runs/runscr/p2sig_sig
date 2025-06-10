@@ -1,0 +1,77 @@
+#!/bin/sh
+set -x
+#
+### How to use p2sig
+### Usage: p2sig input(grib) output(spectral) yyyy:mm:dd:hh:ff
+###  input data should be in grib format, and should contain 
+###  necessary fields with correct time stamp. 
+###  e.g., in isfcp=1 and indmois=1 mode, u,v,t,rh in pressure 
+###  levels and ps and topo fields should be included.
+### rsm mode is not available.
+# 
+if [ $# -ne 3 ] ; then
+	echo $0: wrong number of arguments
+	echo Usage: $0 prsfile sigfile yyyy:mm:dd:hh:ff
+	exit
+fi
+INPRS=$1
+OUTSIG=$2
+IY=`echo $3 | cut -d':' -f1`
+IM=`echo $3 | cut -d':' -f2`
+ID=`echo $3 | cut -d':' -f3`
+IH=`echo $3 | cut -d':' -f4`
+FH=`echo $3 | cut -d':' -f5`
+#
+PROG=p2sig
+echo " &NAMP2S                                         "  >$PROG.parm
+echo "  FN='$INPRS',                                   " >>$PROG.parm
+echo "  IY=$IY,IM=$IM,ID=$ID,IH=$IH,FH=$FH.,           " >>$PROG.parm
+echo "  STDPRS=9950,9820,9640,9420,9155,8835,8454,8009," >>$PROG.parm
+echo "         7499,6934,6323,5678,5012,4352,3717,3122," >>$PROG.parm
+echo "         2582,2102,1682,1323,1023, 778, 578, 413," >>$PROG.parm
+echo "          278, 174,  93,  25,                    " >>$PROG.parm
+echo "  INDMOIS=0,                                     " >>$PROG.parm
+echo "  ISFCP=1,                                       " >>$PROG.parm
+echo "  INST=0,                                        " >>$PROG.parm
+echo "  IINTP=0,                                       " >>$PROG.parm
+echo "  IRHEX=0,                                       " >>$PROG.parm
+echo "  IHYB=2,                                        " >>$PROG.parm
+echo "  INORHV=1,                                      " >>$PROG.parm
+echo "  IZRTR=0,                                       " >>$PROG.parm
+echo "/                                                " >>$PROG.parm
+#
+# INDMOIS=0  Specific humidity input
+# INDMOIS=1  Relative humidity input
+# ISFCP=0  Use geopotential height
+# ISFCP=1  Use surface pressure and surface height (recommended)
+# ISFCP=2  Use sealevel pressure only
+# INST=0 Use NCEP rean grib ID
+# INST=1 Use ECMWF rean grib ID
+# IINTP=0  Use horizontal interpolation
+# IINTP=1  Use closest grid (when data has undefined values)
+# IRHEX=0  Use extrapolation for RH
+# IRHEX=1  No extrapolation for RH (only used by incremental interpolation)
+# IHYB=0 Use pressure level data
+# IHYB=1 Use s-p hybrid level data (ccsm style is assumed)
+# IHYB=2 Use sigma level data
+# INORHV=1 No RH vertical interpolation. necessary for ISOTOPE mode.
+# IZRTR=0 corresponded tracers (o3,cloud,etc) are necessary to input.
+# IZRTR=1 zero value is assumed for tracers except vapor
+#
+rm -f fort.[0-9]* 2>/dev/null
+if [ linux = cray -o linux = t90 ] ; then
+	assign -R
+fi
+#
+# If do regional p2sig, use etc/mapinfo to generate the map information,
+# then use rmtn regenerate the regonal orography. 
+# 
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/orogrd.smth             fort.11
+ln -fs $OUTSIG                                 fort.51
+rm $PROG.x 2>/dev/null
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/$PROG.x $PROG.x
+./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo `date` - $PROG execution failed >>ERROR.out
+	exit 8
+fi

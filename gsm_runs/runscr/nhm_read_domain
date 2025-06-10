@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# make nhm location data
+#
+PROG=nhm_read_domain
+rm fort.*
+ln -fs /rhome/yeong/test/svrtest/def/def_gsm/gsm62k28/domain.card  fort.50
+ln -fs ./domain.txt                fort.30
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/$PROG.x $PROG.x
+./$PROG.x 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	echo "`date` $0: Execution failed."
+	exit 8
+fi

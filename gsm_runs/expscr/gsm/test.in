@@ -1,0 +1,175 @@
+#insert-HEADER
+#
+set -ax
+#
+# this script makes 72 hour integration starting from an example initial
+# condition. ideal for first testing the system on new computer system
+#
+# ---------------  user changeable parameters ------------------------
+#
+# Change the following variable if you are running separate experiments
+# from the same directory
+#
+RUNNAME=g_000
+#
+# Intervals of sfc execution, sigma output, sfc output and flx output
+# Various options for running the model
+#
+ENDHOUR=72  
+INCHOUR=$ENDHOUR
+INTSFCX=24
+INTSIG=24
+INTSFC=24
+INTPOST=24
+INTRESTART=24
+#
+FCST_RESTART=yes
+#
+#  ------------- below for expert user only --------------------
+#
+# If you wish, you may modify EXECDIR to /tmp directory and keep these
+# scripts on your permanent disk.
+#
+EXECDIR=@RUNS_DIR@/$RUNNAME
+#
+# -------  do not change below  -------------------------------------
+#
+mkdir -p $EXECDIR 2>/dev/null
+#
+INITIAL_SIGMA=@LIBS_DIR@/con/sigft0090030900.asc
+INITIAL_SFC=@LIBS_DIR@/con/sfcanl90030900.asc
+INITIAL_SFC_FILE_TYPE=osu1
+#
+#  blank means use guess (in the sfc file).
+#
+SST_ANL_T0=
+ICE_ANL_T0=
+SNO_ANL_T0=
+SCV_ANL_T0=
+SST_ANL=@LIBS_DIR@/con/sstanl.900309.grib
+ICE_ANL=@LIBS_DIR@/con/clim.ice.grib
+SNO_ANL=
+SCV_ANL=
+#
+INPUT_RESOLUTION=t@IJCAP@k@ILEVS@
+#
+FCST_NPES=@NPES@
+#
+#  cd to run directory
+#
+scrnam=`echo $0 | sed 's?.*/??g'`
+cp $0 $EXECDIR/0LOG.$scrnam
+ls -l @MODEL_DIR@/bin >$EXECDIR/0LOG.bindates
+cd $EXECDIR || exit 8
+#
+#  renew log file
+#
+cat $0 > ERROR.out
+echo '==============' >>ERROR.out
+#
+# Automatic restart
+#
+if [ -s sigit -a -s sigitdt -a -s sfci -a "$FCST_RESTART" = yes ];then
+	#
+	#  Restart
+	#
+	h=`@LIBS_DIR@/etc/fhour sigit`
+	echo fhour in the sigit file = $h
+else
+	#
+	#  Initial start.
+	#
+	h=00
+	#
+	# Conversion from ascii to native format
+	#
+	fmt=`echo $INITIAL_SIGMA | sed 's/.*\.//g'`
+	@LIBS_DIR@/etc/scnvrt gsm $INITIAL_SFC_FILE_TYPE \
+		@IJCAP@:@ILONF@:@ILATG@:@ILEVS@ \
+		-1:-1:-1:-1:-1 \
+		$fmt:bin $INITIAL_SIGMA:$INITIAL_SFC \
+		cnvrt_initial_sig:cnvrt_initial_sfc || exit 8
+	#
+	# Find initial date and hour
+	#
+	@LIBS_DIR@/etc/date cnvrt_initial_sig >date.$$ || exit 8
+	read HH MM DD yyyy FH <date.$$ ; rm date.$$
+	echo $yyyy $MM $DD $HH $FH
+	#
+	# Change input resolution to model resolution
+	#
+	@RUNSCR_DIR@/chgr \
+			cnvrt_initial_sig cnvrt_initial_sfc \
+			sigit sfci \
+			$INITIAL_SFC_FILE_TYPE || exit 8
+	#
+	#  convert initial sfc file type to model sfc file type
+	#
+	SST_GRB_T0=`eval echo $SST_ANL_T0`
+	SNO_GRB_T0=`eval echo $SNO_ANL_T0`
+	SCV_GRB_T0=`eval echo $SCV_ANL_T0`
+	ICE_GRB_T0=`eval echo $ICE_ANL_T0`
+	export SST_GRB_T0 SNO_GRB_T0 SCV_GRB_T0 ICE_GRB_T0
+	@RUNSCR_DIR@/sfc0 sfci sfco $INITIAL_SFC_FILE_TYPE || exit 8
+	#
+	cp sfco sfci || exit 8
+	cp sigit sigitdt || exit 8
+	cp sigit sig.ft$h || exit 8
+	cp sfci  sfc.ft$h || exit 8
+	#
+	@LIBS_DIR@/etc/date sigit >date.$$ || exit 8
+	read HH MM DD yyyy FH <date.$$ ; rm date.$$
+	echo $yyyy $MM $DD $HH $FH
+	#
+	#  pgb of the initial
+	#
+	if [ "@DOPOST@" = DEFINED ] ; then
+		@RUNSCR_DIR@/pgb $h $h $INTSFCX || exit 8
+	elif [ "@CATPGB@ " = DEFINED ] ; then
+		@LIBS_DIR@/etc/catpgb
+	fi
+fi
+#
+#  forecast hour loop
+#
+xc=0
+while [ $h -lt $ENDHOUR ] ; do
+	#
+	hx=`expr $h + $INCHOUR`
+	if [ $hx -gt $ENDHOUR ] ; then
+		hx=$ENDHOUR
+	fi
+	if [ $hx -lt 10 ];then hx=0$hx;fi
+	#
+	SST_GRB=`eval echo $SST_ANL`
+	SNO_GRB=`eval echo $SNO_ANL`
+	SCV_GRB=`eval echo $SNO_ANL`
+	ICE_GRB=`eval echo $ICE_ANL`
+	export SST_GRB SNO_GRB SCV_GRB ICE_GRB
+	@RUNSCR_DIR@/fcstparm $INCHOUR $ENDHOUR $INTSFCX \
+			$INTSIG:$INTSFC:$INTPOST:$INTRESTART || exit 8
+	#
+	#  Execute forecast
+	#
+	@RUNSCR_DIR@/fcst || exit 8
+	#
+	#  pgb of the forecast
+	#
+	if [ "@DOPOST@" = DEFINED ] ; then
+		@RUNSCR_DIR@/pgb $h $hx $INTSIG || exit 8
+	elif [ "@CATPGB@ " = DEFINED ] ; then
+		@LIBS_DIR@/etc/catpgb
+	fi
+	#
+	#  find archive files
+	#
+	cp sig.ft$hx sigit || exit 8
+	mv sigp.ft$hx sigitdt  || exit 8
+	cp sfc.ft$hx sfci || exit 8
+  #
+  h=$hx
+done
+if [ @MACHINE@ = mac -a @MARCH@ = mpi ] ; then
+        lamclean
+        lamhalt
+fi

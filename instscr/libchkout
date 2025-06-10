@@ -1,0 +1,79 @@
+#!/bin/sh
+set -x
+cd $currdir
+march_libs=single
+count=1
+for modelx in `echo $model | sed 's/:/ /g'`
+do
+	marchx=\$march_$count
+	marchx=`eval echo $marchx`
+	if [ "$marchx" = mpi ] ; then
+		march_libs=mpi
+		break
+	fi
+	count=`expr $count + 1`
+done
+if [ ! -z "$G_RSM_BIG_FILES_DIR" ] ; then
+	mkdir -p $G_RSM_BIG_FILES_DIR 2>/dev/null
+fi
+if [ "$libons" != s -a "$skip_libs" != yes ] ; then
+	mkdir $libs_dir 2>/dev/null
+	pwd=`pwd`
+	cd $libs_dir
+	for modelx in `echo $model | sed 's/:/ /g'`
+	do
+		MODELX=`echo $modelx | tr "[a-z]" "[A-Z]"`
+		if [ "$skip_cvsco" != yes ] ; then
+			echo cvs co $arg LIBS_$MODELX
+			cvs co $arg LIBS_$MODELX
+			#
+			if [ ! -z "$G_RSM_BIG_FILES_DIR" ] ; then
+				ls -l $G_RSM_BIG_FILES_DIR
+				cd $G_RSM_BIG_FILES_DIR
+			fi
+			echo cvs co $arg CON_${MODELX}_BIG
+			cvs co $arg CON_${MODELX}_BIG
+			if [ ! -z "$G_RSM_BIG_FILES_DIR" ] ; then
+				cd $pwd/$libs_dir
+			fi
+		fi
+		NEED_NETCDF=no
+		if [ "$MODELX" = ROMS ] ; then
+			NEED_NETCDF=yes
+		fi
+	done
+	#
+	#  extract key word values used
+	#
+	grep ':' $SYSVARS_DEFS_DIR/sysvars.defs |  \
+	    sed  -e    '/^#/d'                        \
+		 -e    '/=.*:/d'                      \
+		 -e    's/:.*//g'                     \
+		 -e    's/:/& \
+	/g'                                           \
+		 -e    's/[|]/&\
+	/g'                                           \
+		 -e    's/[@]/&\
+	/g'                                           \
+		 -e    's/[-]/&\
+	/g'                                           \
+		 -e    's/|//g'                       \
+		 -e    's/@//g'                       \
+		 -e    's/-//g'                    |  \
+	    sort -u >keys.$$
+	cat keys.$$
+	for keyvar in `cat keys.$$`
+	do
+		varval=\$$keyvar
+		varval=`eval echo $varval`
+		sed "1,/^$keyvar=/ s/^$keyvar=.*/$keyvar=$varval/g" configure-libs >tmp.$$
+		mv tmp.$$ configure-libs
+	done
+	#
+	#
+	#
+	sed "1,/^NEED_NETCDF=/ s/^NEED_NETCDF=.*/NEED_NETCDF=$NEED_NETCDF/g" configure-libs >tmp.$$
+	mv tmp.$$ configure-libs
+	chmod a+x configure-libs
+fi
+cd $currdir

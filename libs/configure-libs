@@ -1,0 +1,173 @@
+#! /bin/sh 
+set -a
+#
+#  library compilation configuration script.
+# 
+#==========================================================================
+#
+#  INSTITUTION=[sio, sdsc, ncar, tacc, nersc, ...]
+#  MACHINE=[atlas/origin/ibmsp/sun/dec/hp/cray/t90/t3e/linux/mac/intel]
+#  NICKNAME=[compas, atlas, bassi, bulefire, ...]
+#  COMPILER=[pgi, intel, ...]
+#  MARCH=[single, thread, mpi, hybrid]  If any component of the run is mpi, set mpi.
+#  MPIVSN=[1 or 2]
+#  BIT64=[yes or no]
+#  LINUXVSN=[7.2, ...]
+#  LINUXDIST=[redhat, debian, ...] 
+#  NETCDFVSN=[3 or 4] 
+#  DEBUG=[yes,no] 
+#
+#  IF YOU ARE EDITING THIS FILE, MAKE SURE THAT THE FOLLOWING VARIABLES ARE
+#  CORRECTIVELY SPECIFIED.  DO NOT LEAVE ANY VARIABLES UNDEFINED OR BLANK.  IF YOU DO NOT
+#  KNOW WHAT THEY ARE, JUST SPECIFY 'dummy' AND TRY.  IF IT IS THE ABSOLUTELY 
+#  NEEDED VARIABLE, THIS SCRIPT WILL TELL YOU SO.
+#
+#  USE install SCRIPT TO DEFINE THEM FIRST.
+#
+INSTITUTION=ecpc
+MACHINE=linux
+NICKNAME=roses
+COMPILER=intel
+MARCH=mpi
+MPIVSN=1
+BIT64=no
+LINUXVSN=0
+LINUXDIST=0
+NETCDFVSN=3
+DEBUG=no
+USERNAME=m0101
+#
+#============   END OF VARIABLE DEFINITIONS ===================
+#
+gdas=$1
+LIBS_DIR=`pwd`
+#
+echo $0 | grep '/' >/dev/null
+if [ $? -eq 0 ] ; then
+  dir=`echo $0 | sed 's?/[^/]*$??g'`
+  cd $dir
+fi
+currdir=`pwd`
+cd $currdir
+#
+#  create system variable definition bourn shell "sysvars" and 
+#   file for editing "sysvars.sed" 
+#
+../def/get_sysvars || exit 8
+. ./sysvars
+#
+#  option to create netcdf library
+#
+NEED_NETCDF=no
+if [ -z "$NETCDF_LIBDIR" -a "$NEED_NETCDF" = yes ] ; then
+	echo -n "Is the netcdf library installed on this machine? ==>"
+	read yorn
+	if [ "$yorn" = yes -o "$yorn" = y ] ; then
+		echo "Edit def/sysvars.defs and define NETCDF related variables"
+		exit 8
+	else
+		echo "You need to create netcdf library"
+		echo "This will take a while.  Be patient."
+		echo "If this step fails, see http://www.unidata.ucar.edu/software/netcdf/"
+		echo -n "To proceed, press enter. ==>"
+		read dummy
+		#
+		#  netcdf libs
+		#
+		currdir=`pwd`
+		cvs co libs_netcdf
+		lib=netcdf-3.6.3
+		tar xvfz $lib.tar.gz
+		cd $lib
+		unset RM
+		echo "./configure --prefix=$currdir/lib/netcdf"
+		./configure --prefix=$currdir/lib/netcdf
+		make
+		if [ $? -ne 0 ] ; then
+			echo "make of $lib failed."
+			echo "see http://www.unidata.ucar.edu/software/netcdf/ to correct error."
+			exit 8
+		fi
+		make install
+		if [ $? -ne 0 ] ; then
+			echo "make install of $lib failed."
+			echo "see http://www.unidata.ucar.edu/software/netcdf/ to correct error."
+			exit 8
+		fi
+		cd ..
+		echo "NICKNAME-INSTITUTION-MACHINE-NETCDFVSN:$NICKNAME-$INSTITUTION-$MACHINE-$NETCDFVSN:NETCDF_LIBDIR=$currdir/lib/netcdf/lib" >tmp.$$
+		sed "/^NETCDF_LIBDIR=/r tmp.$$" ../def/sysvars.defs >tmp2.$$
+		echo "NICKNAME-INSTITUTION-MACHINE-NETCDFVSN:$NICKNAME-$INSTITUTION-$MACHINE-$NETCDFVSN:NETCDF_INCDIR=$currdir/lib/netcdf/include" >tmp.$$
+		sed "/^NETCDF_INCDIR=/r tmp.$$" tmp2.$$ >../def/sysvars.defs
+		rm tmp.$$ tmp2.$$
+	fi
+	../def/get_sysvars || exit 8
+	. ./sysvars
+fi
+#
+# create define.h
+#
+mch=`echo $MACHINE | tr '[a-z]' '[A-Z]'`
+cmplr=`echo $COMPILER | tr '[a-z]' '[A-Z]'`
+echo "#define $mch" >machine.h
+echo "#define $cmplr" >>machine.h
+echo "#define NAINIT_INDEX $NAINIT_INDEX" >>machine.h
+#
+#  Edit Makefile
+#
+sed -f sysvars.sed ../makefiles/Makefile.libs.in >Makefile
+#
+# edit all the *.in files in this directory and all the subdirctories
+#
+grep -l '@[A-Z0-9_][A-Z0-9_]*@' `find . -name '*.in'` >infiles.$$
+for file in `cat infiles.$$`
+do
+	filex=`echo $file | sed 's/.in$//g'`
+	sed -f sysvars.sed $file >$filex
+	chmod a+x $filex
+done
+rm infiles.$$
+#
+#  Clean up
+#
+if [ "con/*.Z" != 'con/*.Z' ] ; then
+	for file in `ls con/*.Z`
+	do
+		if [ $file != 'con/navydata.asc.Z' ] ; then
+			rm $file
+		fi
+	done
+fi
+for dir in `ls -d etc/util_*`
+do
+	if [ $dir != etc/$UTIL_DIR ] ; then
+		rm -r $dir
+	fi
+done
+if [ "lib/bufrlib_*" != 'lib/bufrlib_*' ] ; then
+	for dir in `ls -d lib/bufrlib_*`
+	do
+		if [ $dir != lib/$BUFRLIB_DIR ] ; then
+			rm -r $dir
+		fi
+	done
+fi
+for dir in `ls -d lib/w3lib_*`
+do
+	if [ $dir != lib/$W3LIB_DIR ] ; then
+		rm -r $dir
+	fi
+done
+#
+#  uncompress nc files if exist
+#
+cd con
+ls *.nc.* >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	if [ $MACHINE = mac ] ; then
+                zcat *.nc.*
+	else
+		uncompress *.nc.*
+	fi
+fi
+echo "configrue-libs completed"

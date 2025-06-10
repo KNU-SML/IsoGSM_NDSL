@@ -1,0 +1,27 @@
+#!/bin/sh
+count=1
+for modelx in `echo $model | sed 's/:/ /g'`
+do
+	srcdir=$modelx
+	eval srcons_$count=
+	if [ -s $srcdir ] ; then
+		if [ "$continue" != yes ] ; then
+			echo "dirctory $srcdir exist."
+			echo -n "Start new (n), overwrite(o) or skip (s)? [return=o]==>"
+			read srcons_$count
+		else
+			eval srcons_$count=
+		fi
+		srco=\$srcons_$count
+		srco=`eval echo $srco`
+		if [ "$srco" = n ] ; then
+			echo -n "Are you sure deleting $srcdir?==>"
+			read yn
+			if [ "$yn" = y -o "$yn" = yes ] ; then
+				rm -rf $srcdir
+			fi
+		fi
+	fi
+	eval srcs_dir_$count=$srcdir
+	count=`expr $count + 1`
+done

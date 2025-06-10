@@ -1,0 +1,214 @@
+#
+SHELL = @SHELL@
+RM = @RM@
+CD = @CD@
+MAKE = @MAKE@
+INSTALL_DIR = @MODEL_DIR@/bin
+
+GSM_PROGS = @GSM_PROGS@
+GSM_MP_PROGS = @GSM_MPI_PROGS@
+RSM_PROGS = @RSM_PROGS@
+RSM_MP_PROGS = @RSM_MPI_PROGS@
+SCM_PROGS = @SCM_PROGS@
+SCM_MPI_PROGS = @SCM_MPI_PROGS@
+GDAS_PROGS = @GDAS_PROGS@
+GDAS_MPI_PROGS = @GDAS_MPI_PROGS@
+
+gsm_single : 
+	for prog in ${GSM_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+gsm_thread : 
+	for prog in ${GSM_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+gsm_mpi : 
+	for prog in ${GSM_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+	for prog in ${GSM_MP_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+gsm_hybrid : 
+	for prog in ${GSM_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+	for prog in ${GSM_MP_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+rsm_single : 
+	for prog in ${RSM_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+rsm_thread : 
+	for prog in ${RSM_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+rsm_mpi : 
+	for prog in ${RSM_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+	for prog in ${RSM_MP_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+rsm_hybrid : 
+	for prog in ${RSM_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+	for prog in ${RSM_MP_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+scm :
+	for prog in ${SCM_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+gdas : 
+	for prog in ${GDAS_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+	for prog in ${GDAS_MP_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} || exit 8 ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+clean_gsm :  
+	for prog in ${GSM_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} clean ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+gsm_mpi_clean :  
+	for prog in ${GSM_MP_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} clean ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+rsm_mpi_clean :  
+	for prog in ${RSM_MP_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} clean ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+clean_rsm :  
+	for prog in ${RSM_PROGS} ${RSM_MP_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} clean ; \
+			${CD} .. ; \
+		fi ; \
+	done
+
+clean_scm :
+	for prog in ${SCM_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} clean ; \
+			${CD} .. ; \
+		fi ; \
+	done
+clean_gdas :  
+	for prog in ${GDAS_PROGS} ; do \
+		if [ -s $$prog ] ; then \
+			${CD} $$prog ; \
+			echo now in $$prog ; \
+			${MAKE} clean ; \
+			${CD} .. ; \
+		fi ; \
+	done

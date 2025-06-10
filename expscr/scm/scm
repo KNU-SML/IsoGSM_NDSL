@@ -1,0 +1,333 @@
+#!/bin/sh
+#PBS -l nodes=1:ppn=36
+ cd \$PBS_O_WORKDIR
+ export LANG=C
+#
+ulimit -s unlimited
+#
+# this script makes 72 hour integration starting from an example initial
+# condition. ideal for first testing the system on new institution
+# and/or computer
+#
+set -ax
+#
+# ---------------  Edit variables if you wish -------------------------
+#
+# Change the following variable if you are running separate experiments
+# from the same directory
+#
+RUNNAME=9211_test
+#
+# -----------------------------------------------------------------------------
+#host=`hostname | cut -d . -f1`
+#if [ $host = global ];then
+#	host_head=''
+#else
+#	host_head='/global'
+#fi
+#
+obs=toga
+#
+# Intervals of sigma output, sfc output and flx output
+#
+INTSFCX=24
+if [ $obs = arm00 -o $obs = arm97 ]; then
+	INTSFC=3
+	INTSIG=3
+	INTPOST=3
+else
+	INTSFC=6
+	INTSIG=6
+	INTPOST=6
+fi
+INTRESTART=24
+SWHR_GBL=$INTPOST
+LWHR_GBL=$INTPOST
+export $SWHR_GBL $LWHR_GBL
+#
+FCST_RESTART=no
+SFC_FILE_TYPE=osu1
+#
+sub=1
+if [ $obs = arm97 ]; then
+#	subc=3
+	subc=1
+else
+	subc=1
+fi
+#
+while [ $sub -le $subc ]
+do
+	if [ $sub -eq 1 ]; then
+		exp=A
+	fi
+	if [ $obs = toga ]; then
+		yymm=9211
+		SYYYYMMDDHH=1992122000
+		EYYYYMMDDHH=1992122600
+		gr_stime=00Z20Dec1992
+	elif [ $obs = arm00 ]; then
+		yymm=0003
+		SYYYYMMDDHH=2000030118
+		EYYYYMMDDHH=2000032209
+		gr_stime=18Z01Mar2000
+	elif [ $obs = arm97 ]; then
+		yymm=9707
+		if [ $sub = 1 ]; then
+			SYYYYMMDDHH=1997062700
+			EYYYYMMDDHH=1997071800
+			gr_stime=00Z27Jun1997
+			exp=A
+		elif [ $sub = 2 ]; then
+			SYYYYMMDDHH=1997070800
+			EYYYYMMDDHH=1997071300
+			gr_stime=00Z08Jul1997
+			exp=B
+		elif [ $sub = 3 ]; then
+			SYYYYMMDDHH=1997071300
+			EYYYYMMDDHH=1997071800
+			gr_stime=00Z13Jul1997
+			exp=C
+		fi
+	else
+		echo "unknown SCM observation $obs"
+		exit 1
+	fi
+	#
+	YYYYS=`echo $SYYYYMMDDHH | cut -c 1-4`
+	MMS=`echo $SYYYYMMDDHH | cut -c 5-6`
+	DDS=`echo $SYYYYMMDDHH | cut -c 7-8`
+	HHS=`echo $SYYYYMMDDHH | cut -c 9-10`
+	#
+	YYYYE=`echo $EYYYYMMDDHH | cut -c 1-4`
+	MME=`echo $EYYYYMMDDHH | cut -c 5-6`
+	DDE=`echo $EYYYYMMDDHH | cut -c 7-8`
+	HHE=`echo $EYYYYMMDDHH | cut -c 9-10`
+	#
+	ENDHOUR=`/rhome/yeong/test/svrtest/libs/etc/inchour \
+	$YYYYS $MMS $DDS $HHS $YYYYE $MME $DDE $HHE | sed 's/ *//g'`
+	INCHOUR=$ENDHOUR
+	#
+	# If you wish, you may modify EXECDIR to /tmp directory and keep these
+	# scripts on your permanent disk.
+	#
+	EXECDIR=/rhome/yeong/test/svrtest/gsm_runs/$obs/$RUNNAME/sub$exp
+	#EXECDIR=`pwd`/$obs/$RUNNAME/sub$exp
+	mkdir -p $EXECDIR 2>/dev/null
+	cd $EXECDIR
+	if [ $? -ne 0 ] ; then
+  		echo "cd to $EXECDIR failed"
+  		exit 8
+	fi
+	#
+	FCST_NPES=36
+	# Initial & BDY conditions
+	#
+	if [ $obs = toga ]; then
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/TOGA/basic/toga40.plev $EXECDIR/obs.plev				|| exit 8
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/TOGA/9211/_dat/basic_flds.ifa_v2.1 $EXECDIR/.		|| exit 8
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/TOGA/9211/_dat/deriv_flds.ifa_v2.1 $EXECDIR/.		|| exit 8
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/TOGA/9211/_dat/lsf_flds.ifa_v2.1 $EXECDIR/.			|| exit 8
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/ncep_sfc/sfc.anl.$YYYYS$MMS$DDS$HHS.ieee $EXECDIR/.	|| exit 8
+	elif [ $obs = arm00 ]; then
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/ARM/basic/arm_sgp00.plev $EXECDIR/obs.plev			|| exit 8
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/ARM/0003/surface_0003.dat $EXECDIR/.					|| exit 8
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/ARM/0003/layer_0003.dat $EXECDIR/.					|| exit 8
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/ncep_sfc/sfc.anl.$YYYYS$MMS$DDS$HHS.ieee $EXECDIR/.	|| exit 8
+	else
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/ARM/basic/arm_sgp97.plev $EXECDIR/obs.plev			|| exit 8
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/ARM/9707/source/zhang_v2/surface_9707v2.dat $EXECDIR/. || exit 8
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/ARM/9707/source/zhang_v2/layer_9707v2.dat $EXECDIR/.	|| exit 8
+		cp /rhome/yeong/test/svrtest/libs/con/con_scm/ARM/9707/drv/jul97_arm_version2/jul97_zhang_advt_timescale_in.dat $EXECDIR/rlx_advtscl.dat	|| exit 8
+		cp /rhome/yeong/test/svrtest/libs/../con_scm/ncep_sfc/sfc.anl.$YYYYS$MMS$DDS$HHS.ieee $EXECDIR/.	|| exit 8
+	fi
+	#
+	rm -f ERROR.out 2>/dev/null
+#
+###########################################################################
+#
+# Forecast section
+#
+	if [ -s sigit -a -s sigitdt -a -s sfci -a "$FCST_RESTART" = yes ];then
+		#
+		#  Restart
+		#
+		/rhome/yeong/test/svrtest/libs/etc/date sigit >date.out || exit 8
+		read HH MM DD yyyy FH <date.out
+		rm date.out                                                                 
+		/rhome/yeong/test/svrtest/libs/etc/fhour sigit >out || exit 8
+		read h <out
+		h=`expr $h`
+		echo hour in the sigit file = $h
+		if [ $h -lt 10 ];then h=0$h;fi
+		rm out
+	else
+		#
+		#  Initial start.
+		#
+		h=00
+		#
+        	/rhome/yeong/test/svrtest/gsm_runs/runscr/prescm $YYYYS$MMS$DDS$HHS $YYYYE$MME$DDE$HHE \
+                            model_initial_sig model_initial_sfc || exit 8
+		#
+		#  convert to 4-digit year if not
+		#
+		century=`expr \( \( $YYYYS - 1 \) / 100 \) + 1`
+		/rhome/yeong/test/svrtest/gsm_runs/runscr/cnv4dig model_initial_sig model_initial_sfc \
+				sigit sfci $SFC_FILE_TYPE $century || exit 8
+		#
+		cp sigit sigitdt
+  		if [ $? -ne 0 ] ; then
+  	  		echo "`date` $0: cp sigit sigitdt failed" >>ERROR.out 
+			exit 8
+  		fi
+		cp sigit sig.ft$h
+  		if [ $? -ne 0 ] ; then
+    		echo "`date` $0: cp sigit sig.ft$h failed" >>ERROR.out
+			exit 8
+  		fi
+		cp sfci  sfc.ft$h
+  		if [ $? -ne 0 ] ; then
+    		echo "`date` $0: cp sfci sfc.ft$h failed" >>ERROR.out
+			exit 8
+  		fi
+		#
+		/rhome/yeong/test/svrtest/libs/etc/date sigit >date.out || exit 8
+		read HH MM DD yyyy FH <date.out
+		rm date.out
+	fi
+	#
+
+	/rhome/yeong/test/svrtest/gsm_runs/runscr/fcstparm $INCHOUR $ENDHOUR $INTSFCX \
+			$INTSIG:$INTSFC:$INTPOST:$INTRESTART || exit 8
+	#
+	endhour=$ENDHOUR
+	inchour=$INCHOUR
+	#
+	#  loop
+	#
+	xc=0
+	while [ $h -lt $endhour ] ; do
+		#
+		hx=`expr $h + $inchour`
+		if [ $hx -gt $endhour ] ; then
+			hx=$endhour
+		fi
+		if [ $hx -lt 10 ];then hx=0$hx;fi
+		#
+		#  Execute SFC program to update surface fields
+		#
+#  		modh=$h
+#		if [ $modh -eq $h ] ; then 
+#			/rhome/yeong/test/svrtest/libs/etc/date sigitdt >out || exit 8
+#			read hour month day year fhour <out
+#			rm out
+#    		fhe=`expr $hx - $INTSFCX`
+#       	hh=$h
+#           if [ "$SFC0" = yes ] ; then
+#              hhinc=$INTSFCX
+#              if [ $INTSFCX -gt $INCHOUR ] ; then
+#                 hhinc=$INCHOUR
+#              fi
+#              hh=`expr $h + $hhinc`
+#              if [ $hh -lt 10 ] ; then
+#                 hh=0$hh
+#              fi
+#           fi
+#		fi
+		#
+		#  Execute forecast
+		#
+		/rhome/yeong/test/svrtest/gsm_runs/runscr/fcst || exit 8
+		#
+		#  pgb of the forecast
+		#
+		/rhome/yeong/test/svrtest/gsm_runs/runscr/pgb $h $hx $INTSIG || exit 8
+		#
+		#  find archive files
+		#
+		cp sig.ft$hx sigit
+		if [ $? -ne 0 ] ; then
+			echo "`date` $0: cp sig.ft$hx sigit failed" >>ERROR.out
+			exit 8
+		fi
+		mv sigp.ft$hx sigitdt  || exit 8
+		if [ $? -ne 0 ] ; then
+			echo "`date` $0: mv sigp.ft$hx sigitdt failed" >>ERROR.out
+			exit 8
+		fi
+		cp sfc.ft$hx sfci
+		if [ $? -ne 0 ] ; then
+			echo "`date` $0: cp sfc.ft$hx sfci failed" >>ERROR.out
+			exit 8
+		fi
+        #
+        #  rename flx & pgb
+        #
+        YYYY=$YYYYS
+        MM=$MMS
+        DD=$DDS
+        HH=$HHS
+        hr_str=$h
+        hr_end=$hx
+        hr_stp=$hr_str
+        while [ $hr_stp -le $hr_end ] ; do
+	  /rhome/yeong/test/svrtest/libs/etc/incdte \
+	  $YYYY $MM $DD $HH $hr_stp > incdte.$$ || exit 8
+	  read YYYYF MMF DDF HHF < incdte.$$ ; rm incdte.$$
+	  fdate=$YYYYF$MMF$DDF$HHF
+          if [ $hr_stp -ne 00 -a $hr_stp -lt 10 ] ; then
+                hr_stp=0$hr_stp
+          fi
+          mv flx.ft$hr_stp flx.$fdate
+          /rhome/yeong/test/svrtest/libs/etc/force_grib_date_mon flx.$fdate $fdate  || exit 8
+          hr_stp=`expr $hr_stp + $INTPOST`
+        done
+        #
+        hr_str=$h
+        hr_end=$hx
+        hr_stp=$hr_str
+        while [ $hr_stp -le $hr_end ] ; do
+	  /rhome/yeong/test/svrtest/libs/etc/incdte \
+	  $YYYY $MM $DD $HH $hr_stp > incdte.$$ || exit 8
+	  read YYYYF MMF DDF HHF < incdte.$$ ; rm incdte.$$
+	  fdate=$YYYYF$MMF$DDF$HHF
+          if [ $hr_stp -ne 00 -a $hr_stp -lt 10 ] ; then
+                hr_stp=0$hr_stp
+          fi
+          mv pgb.ft$hr_stp pgb.$fdate
+          /rhome/yeong/test/svrtest/libs/etc/force_grib_date_mon pgb.$fdate $fdate  || exit 8
+          hr_stp=`expr $hr_stp + $INTSIG`
+        done
+        #
+        hr_str=$h
+        hr_end=$hx
+        hr_stp=$hr_str
+        while [ $hr_stp -le $hr_end ] ; do
+	  /rhome/yeong/test/svrtest/libs/etc/incdte \
+	  $YYYY $MM $DD $HH $hr_stp > incdte.$$ || exit 8
+	  read YYYYF MMF DDF HHF < incdte.$$ ; rm incdte.$$
+	  fdate=$YYYYF$MMF$DDF$HHF
+          if [ $hr_stp -ne 00 -a $hr_stp -lt 10 ] ; then
+                hr_stp=0$hr_stp
+          fi
+          mv clddiag.ft$hr_stp clddiag.$fdate
+          /rhome/yeong/test/svrtest/libs/etc/force_grib_date_mon clddiag.$fdate $fdate  || exit 8
+          hr_stp=`expr $hr_stp + $INTSIG`
+        done
+  #
+  		h=$hx
+	done
+	if [ -f @POST_DIR@/postsh/make_ctl_$obs.sh ]; then
+		@POST_DIR@/postsh/make_ctl_$obs.sh $EXECDIR $gr_stime $INTSIG $ENDHOUR
+	fi
+
+	if [ -d @POST_DIR@/pscm ]; then
+		for file in `/bin/ls @POST_DIR@/pscm/*.in | sed 's/\.in$//g'`
+		do
+			sed "s%@EXEC_DIR@%$EXECDIR%g;s%@RUN_DIR@%/rhome/yeong/test/svrtest/gsm_runs%g" $file.in > $file
+		done
+	fi
+
+	sub=`expr $sub + 1`
+done		# exp

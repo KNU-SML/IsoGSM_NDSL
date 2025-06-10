@@ -1,0 +1,67 @@
+EXECUTABLE = fcst_par.x
+
+OBJS = @OBJS_FCST@
+
+SRCS = ${OBJS:.o=.F}
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @MODEL_MPI_F77@
+FORT_FLAGS = @MODEL_MPI_FORT_FLAGS@
+LOAD_FLAGS = @MODEL_MPI_LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIBS_DIR@/lib
+INSTALL_DIR = @MODEL_DIR@/bin
+INSTALLDLIB = @MODEL_DIR@/bin
+INSTALL_LIB = @MODEL_DIR@/bin
+EXTRA_LIBS = @EXTRA_LIBS@
+EXTRA_LIBS_FCST = @MODEL_MPI_EXTRA_LIBS@
+JCAP = @JCAP@
+LEVS = @LEVS@
+NPES = @NPES@
+
+LIBS = ${INSTALLDLIB}/gsml_par.a ${INSTALLDLIB}/sfcl_par.a ${INSTALLDLIB}/mpi.a ${INSTALLDLIB}/share.a ${LIB_DIR}/modelib.a ${LIB_DIR}/w3lib.a ${EXTRA_LIBS_FCST}
+
+.DEFAULT :
+	ln -fs ../fcst/$@ $@
+
+${EXECUTABLE} : ${OBJS} ${LIBS}
+	if [ @MACHINE@ = mac ] ; then \
+		ranlib -s ${LIBS} ; \
+	fi
+	${F77} ${LOAD_FLAGS} -o $@ ${OBJS} ${LIBS} ${EXTRA_LIBS}
+	${CP} $@ ${INSTALL_DIR}/fcst_t${JCAP}k${LEVS}_n${NPES}.x ; ${RM} -f ${INSTALL_DIR}/fcst_par.x ; \
+ln -fs ${INSTALL_DIR}/fcst_t${JCAP}k${LEVS}_n${NPES}.x ${INSTALL_DIR}/fcst_par.x
+
+${OBJS} : ${SRCS}
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f .F
+
+.F.f :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f ; rm $*.i
+
+.F.o :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f ; rm $*.i
+	${F77} ${FORT_FLAGS} -c $*.f
+
+.f.o :
+	${F77} ${FORT_FLAGS} -c $*.f
+
+clean :
+	- ${RM} -f *.f *.o .mod ${EXECUTABLE} core
+
+dist_clean :
+	- ${RM} -f *.f *.o *.mod *.x core Makefile
+	- ${RM} -rf rii_files

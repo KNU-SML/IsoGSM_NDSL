@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# sgb
+#
+#  $1 ... starting forecast hour
+#  $2 ... ending forecast hour
+#  $3 ... forecast hour increment
+#
+#  This script assumes that the input sigma file is the form sig.ftxx
+#  The output pressure file is the form sgb.ftxx
+#
+if [ $# -ne 3 ] ; then
+	echo "`date` $0: argument error" >>ERROR.out
+	echo "`date` $0: argument error"
+	exit 8
+fi
+fhs=$1
+fhe=$2
+fhinc=$3
+#
+PROG=sgb
+cat >$PROG.parm <<EOF
+ &NAMSGB
+ ICEN2=1,
+ FHS=$fhs.,FHE=$fhe.,FHINC=$fhinc.,
+ LHGRAD=.false.,
+/
+EOF
+if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+	assign -R
+fi
+rm -f $PROG.x
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/$PROG.x $PROG.x
+./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	echo "`date` $0: Execution failed."
+	exit 8
+fi
+exit 0

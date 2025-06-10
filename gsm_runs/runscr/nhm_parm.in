@@ -1,0 +1,130 @@
+#!/bin/sh
+#
+# nhm NAMELIST data
+#
+ITEND=`expr $KTEND \* 3600 \/ $NHMDT`
+cat << EOF > fcst_namelist.txt		
+JMA NONHYDROSTATIC MODEL
+${DX} KM RESOLUTION WITH REAL OROGRAPHY OF GTOPO30
+NX,NY,NZ=${NX},${NY},${NZ}, DX=${DX}M, DZ=40 - ${DZ}M, NESTING WITH GSM1.25deg
+ &NAMMSW
+ MSWSYS( 1)=1259, MSWSYS( 2)=0, MSWSYS( 3)=2,  MSWSYS( 4)=0,    MSWSYS( 5)=2,
+ MSWSYS( 6)=-2,   MSWSYS( 7)=0, MSWSYS( 8)=11, MSWSYS( 9)=3,    MSWSYS(10)=0,
+ MSWSYS(11)=0,    MSWSYS(12)=7, MSWSYS(13)=12, MSWSYS(14)=0,    MSWSYS(15)=2,
+ MSWSYS(16)=0,    MSWSYS(17)=5, MSWSYS(18)=-40,MSWSYS(19)=31001,
+ MSWSYS(20)=@MSWSYS20@,
+ MSWSYS(21)=23,   
+ MSWSYS(22)=@MSWSYS22@,
+ MSWSYS(23)=12,  MSWSYS(24)=0,    MSWSYS(25)=1,
+ MSWSYS(26)=12,   MSWSYS(27)=0, MSWSYS(28)=40, MSWSYS(29)=0,    MSWSYS(30)=2
+ &END
+ &NAMCLD
+ cudt=5.0d0, warm_rain=.false., P_QR=1, P_QI=1, P_QS=1, nu_strt=1,
+ del_abe=0.15d0,dtlcl_fct=0.2d0, rate_kf=0.01d0, depth_usl=300.d0, cond=1,
+ wide_kf=.false., w_time=8, w_wide_kf=.true., w_vert_ave=.false.,
+ kf_thresh=0.40d-3, fac_revap=0.5d0, fac_gevap=0.5d0, fac_sevap=0.3d0,
+ autr2_usr=1.d-4, auts2=1.d-4,cu_lifetime_min =1800.d0,
+ shallow_lifetime=2400.d0, dtrh_fct=0.25d0, pn0i_usr=5.0d+9
+ &END
+ &NAMPAR
+ ITST=1,ITEND=$ITEND,ITOUT=5000, ITCHK=${IT1},
+ DT=${DTNHM},DX=${DX},DY=${DY},DZ=${DZ},PTRF=300.0,PRESRF=100000.0,
+ OUTPUT_NODE=0,SAVE_MEMORY=1,it2utc=0
+ &END
+ &NAMFIL
+ IMT_INI=23,
+ IMT_EX=23,
+ IMT_PB=163,ISTR_PB=${IT1},
+ IMT_SF=164,ISTR_SF=${IT1},
+ IMT_CF=165,
+ IMT_2M=150,ISTR_2M=${IT1},
+ IMT_MRI=62,ISTR_MRI=${IT3},
+ IMT_MRI_SIB=$KTEND,ISTR_MRI_SIB=${IT24},
+ IMT_BD=93,
+ IMT_PTGRD=25,
+ IMT_HM=50,
+ IMT_BAND=90,
+ IMT_TIME=91,
+ imt_glcc_sib=35,
+ imt_sibini=36,
+ sw_rest_it=1,
+ imt_rs_out=-1,
+ POUT=1000.,975.,950.,925.,900.,850.,800.,700.,600.,500.,400.,300.,250.,
+ 200.,150.,100.,
+ ELEM_2M_USR='_RSDB ','_RLDB ','_SOLAR','TIN   ','QVGRD '
+ &END
+ &NAMGRD
+ NX0=$NX,NY0=$NY,NZ0=$NZ,NGM=4,
+ DXL=${DX},DXR=${DX},IX1=10,IX2=20,
+ DYL=${DY},DYR=${DY},IY1=10,IY2=20,
+ DZL=40.,DZR=904.,IZ1=${NZ},IZ2=${NZ},
+ X_NUM=1,Y_NUM=$CPUNUM
+ VCTRANS_TYPE=${VCTRANS_TYPE}, N_VCTRANS=${N_VCTRANS},
+ ZL_VCTRANS=${ZL_VCTRANS} , ZH_VCTRANS=${ZH_VCTRANS} 
+ &END
+ &NAMVAL
+ RATIOI=1.0,RATIOO=1.0,RATIO2=1.0,RUVNI=1.0,RUVNO=1.0,RUVN2=1.0,
+ FNLTR=0.0,IDIFX=${IDIFX},DIFNL=-2400.0,DIF2D=-2400.0,DIFTG=-300., ASTFC=0.2,
+ STDLON=${SLON},STDLAT=${SLAT},KZDST=${KZDST},KZDEN=${NZ},
+ RLDMPX=-2400.0,RLDMPZ=-2400.0,RLDMPO=0.0,
+ PTGRDS=288.3,PTGRDR=0.0,PTGRDL=0.0,
+ ITGROW=0,UBIAS=0.0,VBIAS=0.0,ITSST=0,EOVER=0.5, WTHRT=2.0,
+ cfl_sound_max=0.6d0, sw_qsmodify=1
+ &END
+ &NAMNST
+ KTSTO=$KTST, KTENO=$KTEND, KTDTO=$KTDTO, DTRATIO=3600.,
+ ALPHA=0.5, ITRMX=20000, RLXCON=3.0E-4, OVERLX=1.8,
+ IO_INIT_W=1, IO_INIT_QC=0, IO_INIT_QCI=0,
+ IO_INIT_QR=0, IO_INIT_QS=0, IO_INIT_QG=0,
+ IO_INIT_QH=0, IO_INIT_ETB=0, IO_INIT_PRS=0,
+ IO_BNDRY_W=1,  IO_BNDRY_QC=-1, IO_BNDRY_QCI=-1,
+ IO_BNDRY_QR=-1, IO_BNDRY_QS=-1, IO_BNDRY_QG=-1,
+ IO_BNDRY_QH=0, IO_BNDRY_ETB=0, IO_BNDRY_PRS=0,
+ SW_CHANGE_SST=2
+ &END
+ &NAMRAD
+ DTRADS=900.d0, THINOUT_X_RD=2, THINOUT_Y_RD=2, LOW_CLD=1, LOW_CLD_QC=2,
+ ZCLMIN=500.d0, CLD_RD=3, DIAG_CWC=1, CWCL0=0.21d0, AERSL=1, PFACT=0.25d0,
+ GAM=0.20d0, ALPHAZERO=4.75d0, OZONE=1, VL_EXP=1
+ &END
+ &NAMPTG
+ DAY0=90.0 ,GTIME0= 0.0 ,ALBEDL=0.2 ,ALBEDS=0.1 ,WETL=0.1 ,WETS=1.0,
+ ri_b_max=5.d0, my3_adv=3, my3_pdf=0, my3_sgm_min_fct=0.09d0
+ &END
+IN    Z(M)    U(M/S)    V(M/S)     PT(K)     RH(%)  QC(G/KG)  QR(G/KG)
+ 1     0.0       8.0       0.0     288.3       0.0       0.0       0.0
+ 2  3900.0       8.0       0.0     300.0       0.0       0.0       0.0
+ 3 11900.0       8.0       0.0     324.0       0.0       0.0       0.0
+ 4 19900.0       8.0       0.0     348.0       0.0       0.0       0.0
+ 5 20100.0       8.0       0.0     348.6       0.0       0.0       0.0
+99
+ &NAMKDD
+ KDD( 1)=1, KDD( 2)=1, KDD( 3)=1, KDD( 4)=2, KDD( 5)=2,
+ KDD( 6)=1, KDD( 7)=1, KDD( 8)=2, KDD( 9)=3, KDD(10)=1,
+ KDD(11)=0, KDD(12)=0, KDD(13)=1, KDD(14)=1, KDD(15)=1,
+ KDD(16)=0, KDD(17)=1, KDD(18)=0, KDD(19)=0, KDD(20)=0,
+ KDD(21)=0, KDD(22)=0, KDD(23)=0, KDD(24)=0,
+ KDD(25)=0, KDD(26)=3
+ &END
+ &NAMOUT
+  z_0m_limit=1.0d0, z_0h_fact=1.d-4, sw_sfc_diag=2045,
+  ptv_fact_max=1.0d0, ptv_fact_min=0.0d0,
+  qv_fact_max=1.0d0, qv_fact_min=0.0d0,
+  sfc_wind_height=10.d0,sfc_t_height=1.5d0
+ &END
+ &NAMSIB
+  iflag_use_nhm_wet = -1,  pbl_coef=5.
+ &END
+ Usage of KDD
+  1:U, 2:V, 3:W, 4:(1:PT, 2:PT+TIN), 5:QV,
+  6:(1:QC, 2:QNC, 3:both), 7:(1:QR, 2:QNR, 3:both), 8:ETURB,
+  9:(1:EDDYKM, 2:EDDYKH, 3: both), 10:PRS,
+  11:(1:PPT, 2:PPT+PQV,3:PPT+PQV+PQC), 12:(1:PQR, 2:PQR+PQCI),
+  13:(1:QCI, 2:QNCI, 3:QCI+QNCI), 14:(1:QS, 2:QNS, 3: both),
+  15:(1:QH, 2:QNH, 3:QH+QNH), 16:(1:PQS, 2:PQS+PQH)
+  17:DNSG2, 18:(1:TPPT, 2:TPQV, 3:both), 19:BUOYD, 20-22:(spare),
+  23:(1:RADPT, 2:TRADP, 3:both), 24:(1:RSTPTW, 2:RSTPTW+RSTQVW),
+  25-26:(spare)
+      kdd(*)=0 : no output
+      1,2,3,4,5,6,7,8,10,13,14,15:*-1=>KT,KTN OUTPUT
+EOF

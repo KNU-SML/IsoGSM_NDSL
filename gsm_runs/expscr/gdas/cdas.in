@@ -1,0 +1,1027 @@
+#insert-HEADER
+#
+# this script does multiple cycle of data assimilation.
+#
+set -ax
+#
+# Change the following variable if you are running separate experiments
+# from the same directory
+#
+RUNNAME=G_000
+#
+# If you wish, you may modify EXECDIR to /tmp directory and keep these
+# scripts on your permanent disk.
+#
+EXECDIR=@RUNS_DIR@/$RUNNAME
+mkdir -p $EXECDIR 2>/dev/null
+cd $EXECDIR || exit 8
+ARCHIVE_DIR=$EXECDIR
+#
+#   0.  block     -- blocks bufr file for efficiency
+#   1.  grepsat   -- remove all sat data (from independent sat qc)
+#   2.  edupat    -- remove all radiosondes (from independent obs qc)
+#   3.  fixpaobs  -- fix paobs 180 degree location error (no longer needed)
+#   4.  edsatw    -- remove satwind (optional)
+#   5.  edswnd    -- remove TIROS sat wind 
+#   6.  eddrib    -- remove drifting buoys (optional)
+#   7.  ednosat   -- remove space based observing system (optional)
+#   8.  edbuoy    -- remove buoy using ECMWF blacklist
+#   9.  check     -- check necessary files for gdas
+#  10.  prevents  -- compute increments and split the bufr file
+#  11.  cqc       -- complex quality control
+#  12.  acqc      -- aircraft quality control
+#  13.  combbufr  -- combine qc'ed radiosonde and aircraft bufr files
+#  14.  oiqc      -- optimum interpolation quality control
+#  15.  ssi       -- spectral statistical interpolation analysis
+#  16.  sfc       -- set up surface conditions
+#  17.  precipadj -- set up surface conditions
+#  18.  fcst      -- atmospheric model integration
+#  19.  pgb       -- sigma to pressure interpolation of analysis field
+#  20.  copy      -- copy/ftp created files to the archive directory
+#  21.  postvents -- create final bufr file with meta data
+#
+list_of_steps='block grepsat edupat fixpaobs edsatw edswnd eddrib ednosat edbuoy check prevents cqc acqc combbufr oiqc ssi sfc precipadj fcst pgb copy postvents'
+#
+INT_CYCLE=6
+HX=$INT_CYCLE
+if [ $HX -lt 10 ] ; then
+	HX=0$HX
+fi
+#
+STEP=$1
+# 
+#  Change INPUT_BUFR_BLOCKING [cray/sgi/ibm...../no]
+#
+INPUT_BUFR_FILE_NAME=/your_prepbufr_directory/prepbufr\$YYYY\$MM\$DD\$HH
+INPUT_BUFR_BLOCKING=no
+SIG_GUESS=$ARCHIVE_DIR/200003/bin/sig.ft06.2000032918.ieee
+SFC_GUESS=$ARCHIVE_DIR/200003/bin/sfc.ft06.2000032918.ieee
+SIG_ANL_PREV=$ARCHIVE_DIR/200003/bin/sig.anl.2000032918.ieee
+SST_GRB_IN=/sfcanl_dir/\$YYYY/sst.grib
+SCV_GRB_IN=/sfcanl_dir/\$YYYY/sno.grib
+ICE_GRB_IN=/sfcanl_dir/\$YYYY/ice.grib
+SNO_GRB_IN=
+SST_GRB_T0_IN=/sfcanl_dir/\$YYYYS/sst.grib
+SCV_GRB_T0_IN=/sfcanl_dir/\$YYYYS/snow.grib
+ICE_GRB_T0_IN=/sfcanl_dir/\$YYYYS/ice.grib
+SNO_GRB_T0_IN=
+SFCFTYP=osu1
+
+FNOROG=@MODEL_DIR@/bin/orogrd.smth
+#
+#
+INCHOUR=$INT_CYCLE
+ENDHOUR=$INT_CYCLE
+INTSFCX=$INT_CYCLE
+INTSIG=$INT_CYCLE
+INTSFC=$INT_CYCLE
+INTPOST=$INT_CYCLE
+INTRESTART=$INT_CYCLE
+#
+INPUT_RESOLUTION=t@IJCAP@k@ILEVS@
+if [ -z "$1" ] ; then
+        FCST_NPES=@NPES@
+else
+        echo "fcst executed with $1 NCPUs.  Correct? ==>\c"
+        read yn
+        if [ "$yn" != y ] ; then
+                exit 8
+        fi
+        FCST_NPES=$1
+fi
+#
+#  DEFINE BEGINING AND ENDING DATES
+#
+YYYYS=1978
+MMS=12
+DDS=01
+HHS=00
+YYYYF=1978
+MMF=12
+DDF=01
+HHF=00
+#
+#  precipitation adjustment (to be activated in future)
+#
+PRECIPITATION_SOIL_ADJUSTMENT=yes
+OBS_PREC_FILE=/obs_precip_dir/obs_gau_rain-2000.grib
+WGRIB=@LIBS_DIR@/etc/wgrib
+if [ $PRECIPITATION_SOIL_ADJUSTMENT = yes ] ; then
+	$WGRIB -v $OBS_PREC_FILE > $OBS_PREC_FILE.inv
+fi
+#
+YYYY=$YYYYS
+MM=$MMS
+DD=$DDS
+HH=$HHS
+#
+machine@MACHINE@
+#
+yyyymmddhhs=$YYYYS$MMS$DDS$HHS
+yyyymmddhhf=$YYYYF$MMF$DDF$HHF
+yyyymmddhh=$yyyymmddhhs
+#
+scrnam=`echo $0 | sed 's?.*/??g'`
+cp $0 $EXECDIR/0LOG.$scrnam
+ls -l @MODEL_DIR@/bin >$EXECDIR/0LOG.bindates
+#
+#  stepping (for debug)
+#
+num=0
+for step in $list_of_steps
+do
+	if [ "$STEP" = $step -o -z "$STEP" ] ; then
+		restart_step=$num
+		break
+	fi
+	num=`expr $num + 1`
+done
+if [ -z "$restart_step" ] ; then
+	echo "Illegal restart step name: $STEP"
+	exit 8
+fi
+#
+#  start of date looP
+#
+ftp=no
+while [ $yyyymmddhh -le $yyyymmddhhf ] ; do
+	#
+	echo "Starting analysis of $YYYY$MM$DD$HH" >ERROR.out
+	YY=`echo $YYYY | cut -c3-4`
+	yyyymmdd=$YYYY$MM$DD
+	#
+	#  define sst, snow and ice file names knowling YYYY MM DD HH
+	#
+  SST_GRB=`eval echo $SST_GRB_IN`
+  SCV_GRB=`eval echo $SCV_GRB_IN`
+  ICE_GRB=`eval echo $ICE_GRB_IN`
+  SNO_GRB=`eval echo $SNO_GRB_IN`
+  SST_GRB_T0=`eval echo $SST_GRB_T0_IN`
+  SCV_GRB_T0=`eval echo $SCV_GRB_T0_IN`
+  ICE_GRB_T0=`eval echo $ICE_GRB_T0_IN`
+  SNO_GRB_T0=`eval echo $SNO_GRB_T0_IN`
+	export SST_GRB SNO_GRB SCV_GRB ICE_GRB SST_GRB_T0 SNO_GRB_T0 SCV_GRB_T0 ICE_GRB_T0
+	#
+	# 0.  Check input bufr file.  
+	#
+	input_bufr_file_name=`eval echo $INPUT_BUFR_FILE_NAME`
+	if [ -s $input_bufr_file_name.Z ] ; then
+		rm $input_bufr_file_name 2>/dev/null
+		uncompress -f $input_bufr_file_name.Z
+	fi
+	if [ ! -s $input_bufr_file_name ] ; then
+		echo "$input_bufr_file_name NOT FOUND" >>ERROR.out
+		exit 8
+	fi
+	#
+	#  0.  blocking
+	#
+	if [ $restart_step -le 0 ] ; then
+		@GDASCR_DIR@/bufrblk $INPUT_BUFR_BLOCKING $input_bufr_file_name out.bufr || exit 8
+	fi
+	#
+	#  1.  grepsat
+	#
+	if [ $restart_step -le 1 ] ; then
+		@GDASCR_DIR@/grepsat $yyyymmdd || exit 8
+	fi
+	#
+	#  2.  edupat -- remove radiosondes
+	#
+	if [ $restart_step -le 2 ] ; then
+		@GDASCR_DIR@/edupat $yyyymmdd || exit 8
+	fi
+	#
+	#  3.  fixpaobs -- Fix PAOBS 180 degree location error
+	#
+	if [ $restart_step -le 3 ] ; then
+		@GDASCR_DIR@/fixpaobs $yyyymmdd || exit 8
+	fi
+	#
+	#  4.  edsatw  -- no satwind experiment
+	#
+	if [ $restart_step -le 4 ] ; then
+		REMOVE_SATWIND=no
+		if [ $REMOVE_SATWIND = yes ] ; then
+			@GDASCR_DIR@/edsatw || exit 8
+		fi
+	fi
+	#
+	#  5.  edswnd - Remove TIROS sat wind based on area
+	#
+	if [ $restart_step -le 5 ] ; then
+		@GDASCR_DIR@/edswnd $yyyymmdd || exit 8
+	fi
+	#
+	#  6.  eddrib -- Remove drifting buoys experiment
+	#
+	if [ $restart_step -le 6 ] ; then
+		REMOVE_DRIFTING_BUOYS=no
+		if [ $REMOVE_DRIFTING_BUOYS = yes ] ; then
+			@GDASCR_DIR@/eddrib || exit 8
+		fi
+	fi
+	#
+	#  7.  ednosat  -- NOSAT experiment (no satellite based data)
+	#
+	if [ $restart_step -le 7 ] ; then
+		REMOVE_SATELLITE_BASED_OBS=no
+		if [ $REMOVE_SATELLITE_BASED_OBS = yes ] ; then
+			@GDASCR_DIR@/ednosat || exit 8
+		fi
+	fi
+	#
+	#  8.  edbuoy -- remove bad buoy using ecmwf blacklist
+	#
+	if [ $restart_step -le 8 ] ; then
+		@GDASCR_DIR@/edbuoy $yyyymmddhh $YYYY $MMS || exit 8
+	fi
+	#
+	#  copy edited bufr file for quality control
+	#
+	cp out.bufr obcycle.anl.$YYYY$MM$DD$HH.bufr  || exit 8
+	#
+	#  9.  check input files
+	#
+	if [ $restart_step -le 9 ] ; then
+		.	@GDASCR_DIR@/filecheck
+	fi
+	#
+	#  10.  prevents
+	#
+	if [ $restart_step -le 10 ] ; then
+		@GDASCR_DIR@/prevents obcycle.anl.$YYYY$MM$DD$HH.bufr || exit 8
+	fi
+	#
+	#  11.  cqc
+	#
+	if [ $restart_step -le 11 ] ; then
+		@GDASCR_DIR@/cqc obcycle.anl.$YYYYM24$MMM24$DDM24$HHM24.bufr \
+										obcycle.anl.$YYYYM12$MMM12$DDM12$HHM12.bufr \
+										obcycle.anl.$YYYYP12$MMP12$DDP12$HHP12.bufr \
+										obcycle.anl.$YYYYP24$MMP24$DDP24$HHP24.bufr || exit 8
+	fi
+	#
+	#  12.  acqc
+	#
+	if [ $restart_step -le 12 ] ; then
+		@GDASCR_DIR@/acqc || exit 8
+	fi
+	#
+	#  13.  combbufr
+	#
+	if [ $restart_step -le 13 ] ; then
+		@GDASCR_DIR@/combbufr
+	fi
+	#
+	#  14.  oiqc
+	#
+	if [ $restart_step -le 14 ] ; then
+		@GDASCR_DIR@/oiqc || exit 8
+	fi
+	#
+	#  15.  ssi
+	#
+	if [ $restart_step -le 15 ] ; then
+		@GDASCR_DIR@/ssi || exit 8
+	fi
+	#
+	#  16.  sfc
+	#
+	if [ $restart_step -le 16 ] ; then
+		ln -fs guessfc sfci
+    @RUNSCR_DIR@/sfc0  sfci sfco $SFCFTYP || exit 8
+		ln -fs sfco sfc.anl
+	fi
+	#
+	#  17 Soil wetness adjustment
+	#
+	if [ $restart_step -le 17 ] ; then
+		if [ $PRECIPITATION_SOIL_ADJUSTMENT = yes ] ; then
+			@GDASCR_DIR@/precipadj $YYYY $MM $DD $OBS_PREC_FILE $WGRIB $ARCHIVE_DIR || exit 8
+			ln -fs sfco sfc.anl
+		fi
+	fi
+	#
+	#  18.  fcst
+	#
+	if [ $restart_step -le 18 ] ; then
+		@RUNSCR_DIR@/fcstparm $INCHOUR $ENDHOUR $INTSFCX \
+                      $INTSIG:$INTSFC:$INTPOST:$INTRESTART || exit 8
+		cp sfc.anl sfci
+		cp sig.anl sigit
+		cp sig.anl sigitdt
+		@RUNSCR_DIR@/fcst || exit 8
+		if [ "@CATPGB@ " = DEFINED ] ; then
+			@LIBS_DIR@/etc/catpgb
+		fi
+    if [ $PRECIPITATION_SOIL_ADJUSTMENT = yes ] ; then
+       cat precipadj.grib >>flx.ft$HX.grib
+       if [ $? -ne 0 ] ; then
+         echo `date` - cat of precipadj.grib failed 
+         exit 8
+       fi
+    fi
+		ln -fs sig.anl sig.anl.bin
+		ln -fs sig.ft$HX sig.ft$HX.bin
+		ln -fs sfc.ft$HX sfc.ft$HX.bin
+	fi
+	#
+	#  9. Post processing of analysis and forecast
+	#
+	if [ $restart_step -le 19 ] ; then
+		ln -fs sig.anl sig.ft00
+		if [ "@DOPOST@" = DEFINED ] ; then
+			@RUNSCR_DIR@/pgb 00 $INT_CYCLE $INTSIG || exit 8
+		elif [ "@CATPGB@ " = DEFINED ] ; then
+			@LIBS_DIR@/etc/catpgb
+		fi
+	fi
+	#
+	#  get date and hour for next cycle
+	#
+	@LIBS_DIR@/etc/incdte $YYYY $MM $DD $HH $INT_CYCLE >incdte.$$ || exit 8
+	read YYYYN MMN DDN HHN <incdte.$$
+	rm incdte.$$
+	#
+	#  10. Convert binary sig.anl and sfc.anl to ieee
+	#
+	if [ $restart_step -le 20 ] ; then
+		#
+		#  10.1 convert sig and sfc files to ieee
+		#
+		SFCFTYP=@SFCFTYP@
+		@LIBS_DIR@/etc/scnvrt gsm $SFCFTYP \
+					@JCAP@:@LONF@:@LATG@:@LEVS@ \
+					-1:-1:-1:-1:-1 \
+					bin:ieee sig.anl:sfc.anl sig.anl.ieee:sfc.anl.ieee
+		if [ $machine = dec ] ; then
+			 mv sig.dec sig.anl.ieee
+			 mv sfc.dec sfc.anl.ieee
+		fi
+		@LIBS_DIR@/etc/scnvrt gsm $SFCFTYP \
+					@JCAP@:@LONF@:@LATG@:@LEVS@ \
+					-1:-1:-1:-1:-1 \
+					bin:ieee sig.ft$HX:sfc.ft$HX sig.ft$HX.ieee:sfc.ft$HX.ieee
+					if [ $machine = dec ] ; then
+						 mv sig.dec sig.ft$HX.ieee
+						 mv sfc.dec sfc.ft$HX.ieee
+					fi
+    #
+    # 10.2 Copy final files to the archive directory
+    #
+		archdir=$ARCHIVE_DIR/$YYYY$MM
+    if [ $DD = '01' -a $HH = '00' -o $yyyymmddhh -eq $yyyymmddhhs ] ; then
+      for dir in post diag anl guess cqc bufr restart out
+      do
+        if [ ! -s $archdir/$dir ] ; then
+          mkdir -p $archdir/$dir 2>/dev/null
+        fi
+      done
+    fi
+		#
+		#  post processed files
+		#
+		cp pgb.ft00 $archdir/post/pgb.anl.$YYYY$MM$DD$HH.grib
+		cp pgb.ft06 $archdir/post/pgb.ft$HX.$YYYY$MM$DD$HH.grib
+		#
+		#  diagnostic files
+		#
+    cp flx.ft00 $archdir/diag/flx.ft00.$YYYY$MM$DD$HH.grib
+    cp flx.ft$HX $archdir/diag/flx.ft$HX.$YYYY$MM$DD$HH.grib
+		if [ -s dg3.ft00.grib ] ; then
+			cp dg3.ft00.grib $archdir/diag/dg3.ft00.$YYYY$MM$DD$HH.grib
+		fi
+		if [ -s dg3.ft$HX.grib ] ; then
+			cp dg3.ft$HX.grib $archdir/diag/dg3.ft$HX.$YYYY$MM$DD$HH.grib
+		fi
+		if [ -s znl.ft00.native ] ; then
+			cp znl.ft00.native $archdir/diag/anl.ft00.$YYYY$MM$DD$HH.native
+		fi
+		if [ -s znl.ft$HX.native ] ; then cp
+			znl.ft$HX.native $archdir/diag/anl.ft$HX.$YYYY$MM$DD$HH.native
+		fi
+		#
+		#  bufr files
+		#
+    mv obcycle.anl.$YYYY$MM$DD$HH.bufr  $archdir/bufr
+    cp oiqc.anl.bufr $archdir/bufr/oiqc.$YYYY$MM$DD$HH.bufr
+		#
+		#  binary forecast history  files
+		#
+    cp sig.anl.ieee $archdir/bin/sig.anl.$YYYY$MM$DD$HH.ieee
+    cp sfc.anl.ieee $archdir/bin/sfc.anl.$YYYY$MM$DD$HH.ieee
+    cp sig.ft06.ieee $archdir/bin/sig.ft$HX.$YYYY$MM$DD$HH.ieee
+    cp sfc.ft06.ieee $archdir/bin/sfc.ft$HX.$YYYY$MM$DD$HH.ieee
+		#
+		#  cqc files
+		#
+    cp cqe.anl.ascii $archdir/cqc/cqe.anl.$YYYY$MM$DD$HH.ascii
+    cp cqb.anl.ascii $archdir/cqc/cqb.anl.$YYYY$MM$DD$HH.ascii
+    cp cqt.anl.ascii $archdir/cqc/$YYYY${MM}/cqt.anl.$YYYY$MM$DD$HH.ascii
+		#
+		#  program print output 
+		#
+    cp prevents.out $archdir/out/prevents.$YYYY$MM$DD$HH.out
+    cp cqc.out $archdir/out/cqc.$YYYY$MM$DD$HH.out
+    cp oiqc.out $archdir/out/oiqc.$YYYY$MM$DD$HH.out
+    cp ssi.out $archdir/out/ssi.$YYYY$MM$DD$HH.out
+    cp fcstout.ft00 $archdir/out/fcst.$YYYY$MM$DD$HH.out
+    #
+    #  10.4 Create pentad average flx.ft$HX file for precip adjustment
+    #
+    if [ $HH = "18" ] ; then
+      sed 's/.* //g' @LIBS_DIR@/etc/pentads | grep "$MM$DD"
+      if [ $? -eq 0 ] ; then
+        pmmdds=`sed -n "/$MM$DD/p" @LIBS_DIR@/etc/pentads | cut -d' ' -f1`
+        pmms=`echo $pmmdds | cut -c1-2`
+        pdds=`echo $pmmdds | cut -c3-4`
+        #
+        # Create filename list file
+        #
+        pmm=$pmms
+        pdd=$pdds
+        phh=00
+        phhe=18
+        phinc=6
+        pyyyymmddhhs=$YYYY$pmms$pdds$phh
+        pyyyymmddhhf=$YYYY$MM$DD$phhe
+        pyyyymmddhh=$pyyyymmddhhs
+        rm avfilist 2>/dev/null
+        while [ $pyyyymmddhh -le $pyyyymmddhhf ] ; do
+          if [ ! -s $ARCHIVE_DIR/$YYYY$pmm/diag/flx.ft$HX.$YYYY$pmm$pdd$phh.grib ] ; then
+            echo `date` - $ARCHIVE_DIR/$YYYY$pmm/diag/flx.ft$HX.$YYYY$pmm$pdd$phh.grib does not exist
+            exit 8
+          fi
+          echo "$ARCHIVE_DIR/$YYYY$pmm/diag/flx.ft$HX.$YYYY$pmm$pdd$phh.grib" >>avfilist
+          $LIB_DIR/incdte $YYYY $pmm $pdd $phh $phinc >incdte.out
+          read Y pmm pdd phh <incdte.out
+          pyyyymmddhh=$Y$pmm$pdd$phh
+        done
+        mkdir -p $ARCHIVE_DIR/$YYYY/pentads 2>/dev/null
+        avout=$ARCHIVE_DIR/$YYYY/pentads/flx.ft$HX.$pyyyymmddhhs-$pyyyymmddhhf.grib
+        @LIBS_DIR@/etc/grmean -o $avout -s ./avfilist  >>stdout1.anl.ascii
+        if [ $? -ne 0 ] ; then
+          echo `date` -- grmean of pentad flx.ft$HX failed
+          exit 8
+        fi
+        chmod a-w $avout
+      fi
+    fi
+    #
+    #  10.6 Create monthly average flx.ft$HX file and pgb file
+    #
+    if [ $DDN = '01' -a $HHN = '00' ] ; then
+      mkdir -p $ARCHIVE_DIR/$YYYY$MM/avrg 2>/dev/null
+      #
+      # flx
+      #
+      $LIB_DIR/grmean -i6 -o$ARCHIVE_DIR/$YYYY$MM/avrg/flx.ft$HX.$YYYY$MM.avrg.grib $ARCHIVE_DIR/$YYYY$MM/diag/flx.ft$HX.$YYYY$MM@@d2@@h2.grib  >>stdout1.anl.ascii
+      if [ $? -ne 0 ] ; then
+        echo `date` -- grmean of flx.ft$HX failed 
+        exit 8
+      fi
+      chmod a-w $ARCHIVE_DIR/$YYYY$MM/avrg/flx.ft$HX.$YYYY$MM.avrg.grib
+      #
+      # pgb
+      #
+      $LIB_DIR/grmean -i6 -o$ARCHIVE_DIR/$YYYY$MM/avrg/pgb.anl.$YYYY$MM.avrg.grib $ARCHIVE_DIR/$YYYY$MM/post/pgb.anl.$YYYY$MM@@d2@@h2.grib  >>stdout1.anl.ascii
+      if [ $? -ne 0 ] ; then
+        echo `date` -- grmean of pgb.anljfile failed
+        exit 8
+      fi
+      chmod a-w $ARCHIVE_DIR/$YYYY$MM/avrg/pgb.anl.$YYYY$MM.avrg.grib
+    fi
+	fi
+	#
+	#  increment dates for next cycle
+	#
+	YYYY=$YYYYN
+	MM=$MMN
+	DD=$DDN
+	HH=$HHN
+	echo "increment from $YYYY$MM$DD$HH to $YYYYN$MMN$DDN$HHN" >>ERROR.out
+	#
+	yyyymmddhh=$YYYY$MM$DD$HH
+	#
+	SIG_GUESS=sig.ft$HX.bin
+	SFC_GUESS=sfc.ft$HX.bin
+	SIG_ANL_PREV=sig.anl
+	#
+	# END OF LOOP
+	#
+done
+#
+#
+# this script does multiple cycle of data assimilation.
+#
+set -ax
+#
+# Change the following variable if you are running separate experiments
+# from the same directory
+#
+RUNNAME=G_000
+#
+# If you wish, you may modify EXECDIR to /tmp directory and keep these
+# scripts on your permanent disk.
+#
+EXECDIR=@RUNS_DIR@/$RUNNAME
+mkdir -p $EXECDIR 2>/dev/null
+cd $EXECDIR || exit 8
+ARCHIVE_DIR=$EXECDIR
+#
+#   0.  block     -- blocks bufr file for efficiency
+#   1.  grepsat   -- remove all sat data (from independent sat qc)
+#   2.  edupat    -- remove all radiosondes (from independent obs qc)
+#   3.  fixpaobs  -- fix paobs 180 degree location error (no longer needed)
+#   4.  edsatw    -- remove satwind (optional)
+#   5.  edswnd    -- remove TIROS sat wind 
+#   6.  eddrib    -- remove drifting buoys (optional)
+#   7.  ednosat   -- remove space based observing system (optional)
+#   8.  edbuoy    -- remove buoy using ECMWF blacklist
+#   9.  check     -- check necessary files for gdas
+#  10.  prevents  -- compute increments and split the bufr file
+#  11.  cqc       -- complex quality control
+#  12.  acqc      -- aircraft quality control
+#  13.  combbufr  -- combine qc'ed radiosonde and aircraft bufr files
+#  14.  oiqc      -- optimum interpolation quality control
+#  15.  ssi       -- spectral statistical interpolation analysis
+#  16.  sfc       -- set up surface conditions
+#  17.  precipadj -- set up surface conditions
+#  18.  fcst      -- atmospheric model integration
+#  19.  pgb       -- sigma to pressure interpolation of analysis field
+#  20.  copy      -- copy/ftp created files to the archive directory
+#  21.  postvents -- create final bufr file with meta data
+#
+list_of_steps='block grepsat edupat fixpaobs edsatw edswnd eddrib ednosat edbuoy check prevents cqc acqc combbufr oiqc ssi sfc precipadj fcst pgb copy postvents'
+#
+INT_CYCLE=6
+HX=$INT_CYCLE
+if [ $HX -lt 10 ] ; then
+	HX=0$HX
+fi
+#
+STEP=$1
+# 
+#  Change INPUT_BUFR_BLOCKING [cray/sgi/ibm...../no]
+#
+INPUT_BUFR_FILE_NAME=/your_prepbufr_directory/prepbufr\$YYYY\$MM\$DD\$HH
+INPUT_BUFR_BLOCKING=no
+SIG_GUESS=$ARCHIVE_DIR/200003/bin/sig.ft06.2000032918.ieee
+SFC_GUESS=$ARCHIVE_DIR/200003/bin/sfc.ft06.2000032918.ieee
+SIG_ANL_PREV=$ARCHIVE_DIR/200003/bin/sig.anl.2000032918.ieee
+SST_GRB_IN=/sfcanl_dir/\$YYYY/sst.grib
+SCV_GRB_IN=/sfcanl_dir/\$YYYY/sno.grib
+ICE_GRB_IN=/sfcanl_dir/\$YYYY/ice.grib
+SNO_GRB_IN=
+SST_GRB_T0_IN=/sfcanl_dir/\$YYYYS/sst.grib
+SCV_GRB_T0_IN=/sfcanl_dir/\$YYYYS/snow.grib
+ICE_GRB_T0_IN=/sfcanl_dir/\$YYYYS/ice.grib
+SNO_GRB_T0_IN=
+SFCFTYP=osu1
+
+FNOROG=@MODEL_DIR@/bin/orogrd.smth
+#
+#
+INCHOUR=$INT_CYCLE
+ENDHOUR=$INT_CYCLE
+INTSFCX=$INT_CYCLE
+INTSIG=$INT_CYCLE
+INTSFC=$INT_CYCLE
+INTPOST=$INT_CYCLE
+INTRESTART=$INT_CYCLE
+#
+INPUT_RESOLUTION=t@IJCAP@k@ILEVS@
+if [ -z "$1" ] ; then
+        FCST_NPES=@NPES@
+else
+        echo "fcst executed with $1 NCPUs.  Correct? ==>\c"
+        read yn
+        if [ "$yn" != y ] ; then
+                exit 8
+        fi
+        FCST_NPES=$1
+fi
+#
+#  DEFINE BEGINING AND ENDING DATES
+#
+YYYYS=1978
+MMS=12
+DDS=01
+HHS=00
+YYYYF=1978
+MMF=12
+DDF=01
+HHF=00
+#
+#  precipitation adjustment (to be activated in future)
+#
+PRECIPITATION_SOIL_ADJUSTMENT=yes
+OBS_PREC_FILE=/obs_precip_dir/obs_gau_rain-2000.grib
+WGRIB=@LIBS_DIR@/etc/wgrib
+if [ $PRECIPITATION_SOIL_ADJUSTMENT = yes ] ; then
+	$WGRIB -v $OBS_PREC_FILE > $OBS_PREC_FILE.inv
+fi
+#
+YYYY=$YYYYS
+MM=$MMS
+DD=$DDS
+HH=$HHS
+#
+machine@MACHINE@
+#
+yyyymmddhhs=$YYYYS$MMS$DDS$HHS
+yyyymmddhhf=$YYYYF$MMF$DDF$HHF
+yyyymmddhh=$yyyymmddhhs
+#
+scrnam=`echo $0 | sed 's?.*/??g'`
+cp $0 $EXECDIR/0LOG.$scrnam
+ls -l @MODEL_DIR@/bin >$EXECDIR/0LOG.bindates
+#
+#  stepping (for debug)
+#
+num=0
+for step in $list_of_steps
+do
+	if [ "$STEP" = $step -o -z "$STEP" ] ; then
+		restart_step=$num
+		break
+	fi
+	num=`expr $num + 1`
+done
+if [ -z "$restart_step" ] ; then
+	echo "Illegal restart step name: $STEP"
+	exit 8
+fi
+#
+#  start of date looP
+#
+ftp=no
+while [ $yyyymmddhh -le $yyyymmddhhf ] ; do
+	#
+	echo "Starting analysis of $YYYY$MM$DD$HH" >ERROR.out
+	YY=`echo $YYYY | cut -c3-4`
+	yyyymmdd=$YYYY$MM$DD
+	#
+	#  define sst, snow and ice file names knowling YYYY MM DD HH
+	#
+  SST_GRB=`eval echo $SST_GRB_IN`
+  SCV_GRB=`eval echo $SCV_GRB_IN`
+  ICE_GRB=`eval echo $ICE_GRB_IN`
+  SNO_GRB=`eval echo $SNO_GRB_IN`
+  SST_GRB_T0=`eval echo $SST_GRB_T0_IN`
+  SCV_GRB_T0=`eval echo $SCV_GRB_T0_IN`
+  ICE_GRB_T0=`eval echo $ICE_GRB_T0_IN`
+  SNO_GRB_T0=`eval echo $SNO_GRB_T0_IN`
+	export SST_GRB SNO_GRB SCV_GRB ICE_GRB SST_GRB_T0 SNO_GRB_T0 SCV_GRB_T0 ICE_GRB_T0
+	#
+	# 0.  Check input bufr file.  
+	#
+	input_bufr_file_name=`eval echo $INPUT_BUFR_FILE_NAME`
+	if [ -s $input_bufr_file_name.Z ] ; then
+		rm $input_bufr_file_name 2>/dev/null
+		uncompress -f $input_bufr_file_name.Z
+	fi
+	if [ ! -s $input_bufr_file_name ] ; then
+		echo "$input_bufr_file_name NOT FOUND" >>ERROR.out
+		exit 8
+	fi
+	#
+	#  0.  blocking
+	#
+	if [ $restart_step -le 0 ] ; then
+		@GDASCR_DIR@/bufrblk $INPUT_BUFR_BLOCKING $input_bufr_file_name out.bufr || exit 8
+	fi
+	#
+	#  1.  grepsat
+	#
+	if [ $restart_step -le 1 ] ; then
+		@GDASCR_DIR@/grepsat $yyyymmdd || exit 8
+	fi
+	#
+	#  2.  edupat -- remove radiosondes
+	#
+	if [ $restart_step -le 2 ] ; then
+		@GDASCR_DIR@/edupat $yyyymmdd || exit 8
+	fi
+	#
+	#  3.  fixpaobs -- Fix PAOBS 180 degree location error
+	#
+	if [ $restart_step -le 3 ] ; then
+		@GDASCR_DIR@/fixpaobs $yyyymmdd || exit 8
+	fi
+	#
+	#  4.  edsatw  -- no satwind experiment
+	#
+	if [ $restart_step -le 4 ] ; then
+		REMOVE_SATWIND=no
+		if [ $REMOVE_SATWIND = yes ] ; then
+			@GDASCR_DIR@/edsatw || exit 8
+		fi
+	fi
+	#
+	#  5.  edswnd - Remove TIROS sat wind based on area
+	#
+	if [ $restart_step -le 5 ] ; then
+		@GDASCR_DIR@/edswnd $yyyymmdd || exit 8
+	fi
+	#
+	#  6.  eddrib -- Remove drifting buoys experiment
+	#
+	if [ $restart_step -le 6 ] ; then
+		REMOVE_DRIFTING_BUOYS=no
+		if [ $REMOVE_DRIFTING_BUOYS = yes ] ; then
+			@GDASCR_DIR@/eddrib || exit 8
+		fi
+	fi
+	#
+	#  7.  ednosat  -- NOSAT experiment (no satellite based data)
+	#
+	if [ $restart_step -le 7 ] ; then
+		REMOVE_SATELLITE_BASED_OBS=no
+		if [ $REMOVE_SATELLITE_BASED_OBS = yes ] ; then
+			@GDASCR_DIR@/ednosat || exit 8
+		fi
+	fi
+	#
+	#  8.  edbuoy -- remove bad buoy using ecmwf blacklist
+	#
+	if [ $restart_step -le 8 ] ; then
+		@GDASCR_DIR@/edbuoy $yyyymmddhh $YYYY $MMS || exit 8
+	fi
+	#
+	#  copy edited bufr file for quality control
+	#
+	cp out.bufr obcycle.anl.$YYYY$MM$DD$HH.bufr  || exit 8
+	#
+	#  9.  check input files
+	#
+	if [ $restart_step -le 9 ] ; then
+		.	@GDASCR_DIR@/filecheck
+	fi
+	#
+	#  10.  prevents
+	#
+	if [ $restart_step -le 10 ] ; then
+		@GDASCR_DIR@/prevents obcycle.anl.$YYYY$MM$DD$HH.bufr || exit 8
+	fi
+	#
+	#  11.  cqc
+	#
+	if [ $restart_step -le 11 ] ; then
+		@GDASCR_DIR@/cqc obcycle.anl.$YYYYM24$MMM24$DDM24$HHM24.bufr \
+										obcycle.anl.$YYYYM12$MMM12$DDM12$HHM12.bufr \
+										obcycle.anl.$YYYYP12$MMP12$DDP12$HHP12.bufr \
+										obcycle.anl.$YYYYP24$MMP24$DDP24$HHP24.bufr || exit 8
+	fi
+	#
+	#  12.  acqc
+	#
+	if [ $restart_step -le 12 ] ; then
+		@GDASCR_DIR@/acqc || exit 8
+	fi
+	#
+	#  13.  combbufr
+	#
+	if [ $restart_step -le 13 ] ; then
+		@GDASCR_DIR@/combbufr
+	fi
+	#
+	#  14.  oiqc
+	#
+	if [ $restart_step -le 14 ] ; then
+		@GDASCR_DIR@/oiqc || exit 8
+	fi
+	#
+	#  15.  ssi
+	#
+	if [ $restart_step -le 15 ] ; then
+		@GDASCR_DIR@/ssi || exit 8
+	fi
+	#
+	#  16.  sfc
+	#
+	if [ $restart_step -le 16 ] ; then
+		ln -fs guessfc sfci
+    @RUNSCR_DIR@/sfc0  sfci sfco $SFCFTYP || exit 8
+		ln -fs sfco sfc.anl
+	fi
+	#
+	#  17 Soil wetness adjustment
+	#
+	if [ $restart_step -le 17 ] ; then
+		if [ $PRECIPITATION_SOIL_ADJUSTMENT = yes ] ; then
+			@GDASCR_DIR@/precipadj $YYYY $MM $DD $OBS_PREC_FILE $WGRIB $ARCHIVE_DIR || exit 8
+			ln -fs sfco sfc.anl
+		fi
+	fi
+	#
+	#  18.  fcst
+	#
+	if [ $restart_step -le 18 ] ; then
+		@RUNSCR_DIR@/fcstparm $INCHOUR $ENDHOUR $INTSFCX \
+                      $INTSIG:$INTSFC:$INTPOST:$INTRESTART || exit 8
+		cp sfc.anl sfci
+		cp sig.anl sigit
+		cp sig.anl sigitdt
+		@RUNSCR_DIR@/fcst || exit 8
+		if [ "@CATPGB@ " = DEFINED ] ; then
+			@LIBS_DIR@/etc/catpgb
+		fi
+    if [ $PRECIPITATION_SOIL_ADJUSTMENT = yes ] ; then
+       cat precipadj.grib >>flx.ft$HX.grib
+       if [ $? -ne 0 ] ; then
+         echo `date` - cat of precipadj.grib failed 
+         exit 8
+       fi
+    fi
+		ln -fs sig.anl sig.anl.bin
+		ln -fs sig.ft$HX sig.ft$HX.bin
+		ln -fs sfc.ft$HX sfc.ft$HX.bin
+	fi
+	#
+	#  9. Post processing of analysis and forecast
+	#
+	if [ $restart_step -le 19 ] ; then
+		ln -fs sig.anl sig.ft00
+		if [ "@DOPOST@" = DEFINED ] ; then
+			@RUNSCR_DIR@/pgb 00 $INT_CYCLE $INTSIG || exit 8
+		elif [ "@CATPGB@ " = DEFINED ] ; then
+			@LIBS_DIR@/etc/catpgb
+		fi
+	fi
+	#
+	#  get date and hour for next cycle
+	#
+	@LIBS_DIR@/etc/incdte $YYYY $MM $DD $HH $INT_CYCLE >incdte.$$ || exit 8
+	read YYYYN MMN DDN HHN <incdte.$$
+	rm incdte.$$
+	#
+	#  10. Convert binary sig.anl and sfc.anl to ieee
+	#
+	if [ $restart_step -le 20 ] ; then
+		#
+		#  10.1 convert sig and sfc files to ieee
+		#
+		SFCFTYP=@SFCFTYP@
+		@LIBS_DIR@/etc/scnvrt gsm $SFCFTYP \
+					@JCAP@:@LONF@:@LATG@:@LEVS@ \
+					-1:-1:-1:-1:-1 \
+					bin:ieee sig.anl:sfc.anl sig.anl.ieee:sfc.anl.ieee
+		if [ $machine = dec ] ; then
+			 mv sig.dec sig.anl.ieee
+			 mv sfc.dec sfc.anl.ieee
+		fi
+		@LIBS_DIR@/etc/scnvrt gsm $SFCFTYP \
+					@JCAP@:@LONF@:@LATG@:@LEVS@ \
+					-1:-1:-1:-1:-1 \
+					bin:ieee sig.ft$HX:sfc.ft$HX sig.ft$HX.ieee:sfc.ft$HX.ieee
+					if [ $machine = dec ] ; then
+						 mv sig.dec sig.ft$HX.ieee
+						 mv sfc.dec sfc.ft$HX.ieee
+					fi
+    #
+    # 10.2 Copy final files to the archive directory
+    #
+		archdir=$ARCHIVE_DIR/$YYYY$MM
+    if [ $DD = '01' -a $HH = '00' -o $yyyymmddhh -eq $yyyymmddhhs ] ; then
+      for dir in post diag anl guess cqc bufr restart out
+      do
+        if [ ! -s $archdir/$dir ] ; then
+          mkdir -p $archdir/$dir 2>/dev/null
+        fi
+      done
+    fi
+		#
+		#  post processed files
+		#
+		cp pgb.ft00 $archdir/post/pgb.anl.$YYYY$MM$DD$HH.grib
+		cp pgb.ft06 $archdir/post/pgb.ft$HX.$YYYY$MM$DD$HH.grib
+		#
+		#  diagnostic files
+		#
+    cp flx.ft00 $archdir/diag/flx.ft00.$YYYY$MM$DD$HH.grib
+    cp flx.ft$HX $archdir/diag/flx.ft$HX.$YYYY$MM$DD$HH.grib
+		if [ -s dg3.ft00.grib ] ; then
+			cp dg3.ft00.grib $archdir/diag/dg3.ft00.$YYYY$MM$DD$HH.grib
+		fi
+		if [ -s dg3.ft$HX.grib ] ; then
+			cp dg3.ft$HX.grib $archdir/diag/dg3.ft$HX.$YYYY$MM$DD$HH.grib
+		fi
+		if [ -s znl.ft00.native ] ; then
+			cp znl.ft00.native $archdir/diag/anl.ft00.$YYYY$MM$DD$HH.native
+		fi
+		if [ -s znl.ft$HX.native ] ; then cp
+			znl.ft$HX.native $archdir/diag/anl.ft$HX.$YYYY$MM$DD$HH.native
+		fi
+		#
+		#  bufr files
+		#
+    mv obcycle.anl.$YYYY$MM$DD$HH.bufr  $archdir/bufr
+    cp oiqc.anl.bufr $archdir/bufr/oiqc.$YYYY$MM$DD$HH.bufr
+		#
+		#  binary forecast history  files
+		#
+    cp sig.anl.ieee $archdir/bin/sig.anl.$YYYY$MM$DD$HH.ieee
+    cp sfc.anl.ieee $archdir/bin/sfc.anl.$YYYY$MM$DD$HH.ieee
+    cp sig.ft06.ieee $archdir/bin/sig.ft$HX.$YYYY$MM$DD$HH.ieee
+    cp sfc.ft06.ieee $archdir/bin/sfc.ft$HX.$YYYY$MM$DD$HH.ieee
+		#
+		#  cqc files
+		#
+    cp cqe.anl.ascii $archdir/cqc/cqe.anl.$YYYY$MM$DD$HH.ascii
+    cp cqb.anl.ascii $archdir/cqc/cqb.anl.$YYYY$MM$DD$HH.ascii
+    cp cqt.anl.ascii $archdir/cqc/$YYYY${MM}/cqt.anl.$YYYY$MM$DD$HH.ascii
+		#
+		#  program print output 
+		#
+    cp prevents.out $archdir/out/prevents.$YYYY$MM$DD$HH.out
+    cp cqc.out $archdir/out/cqc.$YYYY$MM$DD$HH.out
+    cp oiqc.out $archdir/out/oiqc.$YYYY$MM$DD$HH.out
+    cp ssi.out $archdir/out/ssi.$YYYY$MM$DD$HH.out
+    cp fcstout.ft00 $archdir/out/fcst.$YYYY$MM$DD$HH.out
+    #
+    #  10.4 Create pentad average flx.ft$HX file for precip adjustment
+    #
+    if [ $HH = "18" ] ; then
+      sed 's/.* //g' @LIBS_DIR@/etc/pentads | grep "$MM$DD"
+      if [ $? -eq 0 ] ; then
+        pmmdds=`sed -n "/$MM$DD/p" @LIBS_DIR@/etc/pentads | cut -d' ' -f1`
+        pmms=`echo $pmmdds | cut -c1-2`
+        pdds=`echo $pmmdds | cut -c3-4`
+        #
+        # Create filename list file
+        #
+        pmm=$pmms
+        pdd=$pdds
+        phh=00
+        phhe=18
+        phinc=6
+        pyyyymmddhhs=$YYYY$pmms$pdds$phh
+        pyyyymmddhhf=$YYYY$MM$DD$phhe
+        pyyyymmddhh=$pyyyymmddhhs
+        rm avfilist 2>/dev/null
+        while [ $pyyyymmddhh -le $pyyyymmddhhf ] ; do
+          if [ ! -s $ARCHIVE_DIR/$YYYY$pmm/diag/flx.ft$HX.$YYYY$pmm$pdd$phh.grib ] ; then
+            echo `date` - $ARCHIVE_DIR/$YYYY$pmm/diag/flx.ft$HX.$YYYY$pmm$pdd$phh.grib does not exist
+            exit 8
+          fi
+          echo "$ARCHIVE_DIR/$YYYY$pmm/diag/flx.ft$HX.$YYYY$pmm$pdd$phh.grib" >>avfilist
+          $LIB_DIR/incdte $YYYY $pmm $pdd $phh $phinc >incdte.out
+          read Y pmm pdd phh <incdte.out
+          pyyyymmddhh=$Y$pmm$pdd$phh
+        done
+        mkdir -p $ARCHIVE_DIR/$YYYY/pentads 2>/dev/null
+        avout=$ARCHIVE_DIR/$YYYY/pentads/flx.ft$HX.$pyyyymmddhhs-$pyyyymmddhhf.grib
+        @LIBS_DIR@/etc/grmean -o $avout -s ./avfilist  >>stdout1.anl.ascii
+        if [ $? -ne 0 ] ; then
+          echo `date` -- grmean of pentad flx.ft$HX failed
+          exit 8
+        fi
+        chmod a-w $avout
+      fi
+    fi
+    #
+    #  10.6 Create monthly average flx.ft$HX file and pgb file
+    #
+    if [ $DDN = '01' -a $HHN = '00' ] ; then
+      mkdir -p $ARCHIVE_DIR/$YYYY$MM/avrg 2>/dev/null
+      #
+      # flx
+      #
+      $LIB_DIR/grmean -i6 -o$ARCHIVE_DIR/$YYYY$MM/avrg/flx.ft$HX.$YYYY$MM.avrg.grib $ARCHIVE_DIR/$YYYY$MM/diag/flx.ft$HX.$YYYY$MM@@d2@@h2.grib  >>stdout1.anl.ascii
+      if [ $? -ne 0 ] ; then
+        echo `date` -- grmean of flx.ft$HX failed 
+        exit 8
+      fi
+      chmod a-w $ARCHIVE_DIR/$YYYY$MM/avrg/flx.ft$HX.$YYYY$MM.avrg.grib
+      #
+      # pgb
+      #
+      $LIB_DIR/grmean -i6 -o$ARCHIVE_DIR/$YYYY$MM/avrg/pgb.anl.$YYYY$MM.avrg.grib $ARCHIVE_DIR/$YYYY$MM/post/pgb.anl.$YYYY$MM@@d2@@h2.grib  >>stdout1.anl.ascii
+      if [ $? -ne 0 ] ; then
+        echo `date` -- grmean of pgb.anljfile failed
+        exit 8
+      fi
+      chmod a-w $ARCHIVE_DIR/$YYYY$MM/avrg/pgb.anl.$YYYY$MM.avrg.grib
+    fi
+	fi
+	#
+	#  increment dates for next cycle
+	#
+	YYYY=$YYYYN
+	MM=$MMN
+	DD=$DDN
+	HH=$HHN
+	echo "increment from $YYYY$MM$DD$HH to $YYYYN$MMN$DDN$HHN" >>ERROR.out
+	#
+	yyyymmddhh=$YYYY$MM$DD$HH
+	#
+	SIG_GUESS=sig.ft$HX.bin
+	SFC_GUESS=sfc.ft$HX.bin
+	SIG_ANL_PREV=sig.anl
+	#
+	# END OF LOOP
+	#
+done
+#

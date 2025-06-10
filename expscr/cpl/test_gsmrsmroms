@@ -1,0 +1,375 @@
+#!/bin/sh
+#PBS -l nodes=1:ppn=36
+ cd \$PBS_O_WORKDIR
+ export LANG=C
+#
+ulimit -s unlimited
+#
+set -ax
+#
+# this script makes 48 hour coupled integration of GSM, RSM and ROMS starting from an example initial
+# condition. ideal for first testing the system on a new mpi computer system.
+#
+# Note that this is an mpi2 execution of two independent executable, but communication will
+# take place between the two executables during the integration.
+#
+# If mpi2 is not installed, this script does not work.
+#
+# ---------------  user changeable parameters ------------------------
+#
+# Change the following variable if you are running separate experiments
+# from the same directory
+#
+RUNNAME=GRR_000
+#
+PROG1=fcst
+PROG2=rfcst
+PROG3=roms
+PROG1_NPES=@GSM_NPES@
+PROG2_NPES=@RSM_NPES@
+PROG3_NPES=@ROMS_NPES@
+#
+# Intervals of sfc execution, sigma output, sfc output and flx output
+# Various options for running the model
+#
+ENDHOUR=48  
+INCHOUR=$ENDHOUR
+INTSFCX=24
+INTSIG=24
+INTSFC=24
+INTPOST=24
+INTRESTART=24
+#
+DELTAT_REG=@DELTAT_REG_WINTER@
+NESTING_HOUR=6
+SWHR_REG=1
+LWHR_REG=1
+INTSFCX_REG=24
+INTPOST_REG=24
+INTPGB_REG=$INTPOST_REG
+INCHOUR_REG=$ENDHOUR
+INTRESTART_REG=24
+#
+ROMS_DT=600
+ROMS_NRST_DAY=30
+ROMS_NHIS_DAY=30
+ROMS_NAVG_DAY=30
+#
+# rsm domain specification
+#
+#
+FCST_RESTART=no
+#
+INITIAL_SIGMA=/rhome/yeong/test/svrtest/libs/con/sigft0090030900.asc
+INITIAL_SFC=/rhome/yeong/test/svrtest/libs/con/sfcanl90030900.asc
+INITIAL_SFC_FILE_TYPE=osu1
+#
+#  blank means use guess (in the sfc file).
+#
+SST_ANL_T0=
+ICE_ANL_T0=
+SNO_ANL_T0=
+SCV_ANL_T0=
+SST_ANL=/rhome/yeong/test/svrtest/libs/con/sstanl.900309.grib
+ICE_ANL=/rhome/yeong/test/svrtest/libs/con/clim.ice.grib
+SNO_ANL=
+SCV_ANL=
+#
+GLOBAL_SIG_INITIAL=$INITIAL_SIGMA
+GLOBAL_SFC_INITIAL=$INITIAL_SFC
+BASE_SIG=sig.ft00
+#
+#   coarse rsm domain specification
+#
+CPROJ=0.0
+CTRUTH=0.0
+CORIENT=0.0
+CDELX=0.0
+CDELY=0.0
+CCENLAT=0.0
+CCENLON=0.0
+CLFTGRD=0.0
+CBTMGRD=0.0
+#
+#  ------------- below for expert user only --------------------
+#
+# If you wish, you may modify EXECDIR to /tmp directory and keep these
+# scripts on your permanent disk.
+#
+EXECDIR=`pwd`/$RUNNAME
+#
+mkdir -p $EXECDIR 2>/dev/null
+#
+INPUT_RESOLUTION=t62k28
+#
+#  cd to run directory
+#
+scrnam=`echo $0 | sed 's?.*/??g'`
+cp $0 $EXECDIR/0LOG.$scrnam
+ls -l @GSM_SRCS_DIR@/bin >$EXECDIR/0LOG.bindates
+ls -l @RSM_SRCS_DIR@/bin >>$EXECDIR/0LOG.bindates
+cd $EXECDIR || exit 8
+#
+ROMS_NRST=`expr $ROMS_NRST_DAY \* 86400 \/ $ROMS_DT`
+ROMS_NHIS=`expr $ROMS_NHIS_DAY \* 86400 \/ $ROMS_DT`
+ROMS_NAVG=`expr $ROMS_NAVG_DAY \* 86400 \/ $ROMS_DT`
+ROMS_NTIMES=`expr $ENDHOUR \* 3600 \/ $ROMS_DT`
+echo ROMS_NTIMES=$ROMS_NTIMES
+#
+#  create namelist regional domain data
+#
+cat >rsm.parm <<EOF
+ &NAMLOC
+ RPROJ    = $RPROJ,
+ RTRUTH   = $RTRUTH,
+ RORIENT  = $RORIENT,
+ RDELX    = $RDELX,
+ RDELY    = $RDELY,
+ RCENLAT  = $RCENLAT,
+ RCENLON  = $RCENLON,
+ RLFTGRD  = $RLFTGRD,
+ RBTMGRD  = $RBTMGRD,
+ CPROJ    = $CPROJ,
+ CTRUTH   = $CTRUTH,
+ CORIENT  = $CORIENT,
+ CDELX    = $CDELX,
+ CDELY    = $CDELY,
+ CCENLAT  = $CCENLAT,
+ CCENLON  = $CCENLON,
+ CLFTGRD  = $CLFTGRD,
+ CBTMGRD  = $CBTMGRD,
+/
+EOF
+#
+#  renew log file
+#
+cat $0 > ERROR.out
+echo '==============' >>ERROR.out
+#
+# Automatic restart
+#
+if [ -s sigit -a -s sigitdt -a -s sfci -a "$FCST_RESTART" = yes ];then
+	#
+	#  gsm Restart
+	#
+	h=`/rhome/yeong/test/svrtest/libs/etc/fhour sigit`
+	echo fhour in the sigit file = $h
+	#
+	#  rsm restart
+	#
+	h_rsm=`/rhome/yeong/test/svrtest/libs/etc/fhour r_sigit`
+	echo fhour in the r_sigit file = $h_rsm
+	if [ $h -ne $h_rsm ] ; then
+		echo "global restart fcst hour not equal to regional forecast hour"
+		exit 8
+	fi
+else
+	#
+	#  Initial cold start.
+	#
+	h=00
+	#
+	# Conversion from ascii to native format
+	#
+	fmt=`echo $INITIAL_SIGMA | sed 's/.*\.//g'`
+	/rhome/yeong/test/svrtest/libs/etc/scnvrt gsm $INITIAL_SFC_FILE_TYPE \
+		62:192:94:28 \
+		-1:-1:-1:-1:-1 \
+		$fmt:bin $INITIAL_SIGMA:$INITIAL_SFC \
+		cnvrt_initial_sig:cnvrt_initial_sfc || exit 8
+	#
+	# Find initial date and hour
+	#
+	/rhome/yeong/test/svrtest/libs/etc/date cnvrt_initial_sig >date.$$ || exit 8
+	read HH MM DD yyyy FH <date.$$ ; rm date.$$
+	echo $yyyy $MM $DD $HH $FH
+	#
+	# Change input resolution to model resolution
+	#
+	@GSM_RUNSCR_DIR@/chgr \
+			cnvrt_initial_sig cnvrt_initial_sfc \
+			sigit sfci \
+			$INITIAL_SFC_FILE_TYPE || exit 8
+	#
+	#  convert initial sfc file type to model sfc file type
+	#
+	SST_GRB_T0=`eval echo $SST_ANL_T0`
+	SNO_GRB_T0=`eval echo $SNO_ANL_T0`
+	SCV_GRB_T0=`eval echo $SCV_ANL_T0`
+	ICE_GRB_T0=`eval echo $ICE_ANL_T0`
+	export SST_GRB_T0 SNO_GRB_T0 SCV_GRB_T0 ICE_GRB_T0
+	@GSM_RUNSCR_DIR@/sfc0 sfci sfco $INITIAL_SFC_FILE_TYPE || exit 8
+	#
+	cp sfco sfci || exit 8
+	cp sigit sigitdt || exit 8
+	cp sigit sig.ft$h || exit 8
+	cp sfci  sfc.ft$h || exit 8
+	#
+	/rhome/yeong/test/svrtest/libs/etc/date sigit >date.$$ || exit 8
+	read HH MM DD yyyy FH <date.$$ ; rm date.$$
+	echo $yyyy $MM $DD $HH $FH
+	#
+	#  pgb of the initial
+	#
+	if [ no = yes ] ; then
+		@GSM_RUNSCR_DIR@/pgb $h $h $INTSFCX || exit 8
+	elif [ no = yes ] ; then
+		/rhome/yeong/test/svrtest/libs/etc/catpgb
+	fi
+	#
+	#  Initial condition.  Convert to native format
+	#
+	#
+	#  generate rsm initial condition from global files
+	#
+	if [ ! -s r_sigit.ft00 -o ! -s r_sfc.ft00 ] ; then
+		#
+		#  horizontal transform/interpolation
+		#
+		@RSM_RUNSCR_DIR@/r_inpg $INITIAL_SFC_FILE_TYPE \
+			sig.ft00:sfc.ft00 \
+			r_sigit.ft00:r_sfc.ft00 || exit 8
+	fi
+	#
+	#  renew r_sfc files using grib data input #
+	#
+	SST_GRB=`eval echo $SST_ANL`
+	SNO_GRB=`eval echo $SNO_ANL`
+	ICE_GRB=`eval echo $ICE_ANL`
+	export SST_GRB SNO_GRB ICE_GRB
+	@RSM_RUNSCR_DIR@/rsfc0 r_sfc.ft00 r_sfci $INITIAL_SFC_FILE_TYPE || exit 8
+	#
+	cp r_sfci r_sfc.ft00
+	cp r_sigit.ft00 r_sigit
+	cp r_sigit r_sigitdt
+	#
+	h=0
+fi
+#
+if [ $INCHOUR -lt $INTSFCX  -o $INCHOUR_REG -lt $INTSFCX ] ; then
+	echo "INCHOUR < INTSFCX or INCHOUR_REG < INTSFCX"
+	echo "INCHOUR set to INTSFCX to make sure sfc is called."
+fi
+#
+#   rsm Environmental variables
+#
+@RSM_RUNSCR_DIR@/basefnam $BASE_SIG
+#
+#  create namelist regional domain data
+#
+cat >rsm.parm <<EOF
+ &NAMLOC
+ RPROJ    = $RPROJ,
+ RTRUTH   = $RTRUTH,
+ RORIENT  = $RORIENT,
+ RDELX    = $RDELX,
+ RDELY    = $RDELY,
+ RCENLAT  = $RCENLAT,
+ RCENLON  = $RCENLON,
+ RLFTGRD  = $RLFTGRD,
+ RBTMGRD  = $RBTMGRD,
+ CPROJ    = $CPROJ,
+ CTRUTH   = $CTRUTH,
+ CORIENT  = $CORIENT,
+ CDELX    = $CDELX,
+ CDELY    = $CDELY,
+ CCENLAT  = $CCENLAT,
+ CCENLON  = $CCENLON,
+ CLFTGRD  = $CLFTGRD,
+ CBTMGRD  = $CBTMGRD,
+/
+EOF
+#
+#  generate grid specification, initial and boundary files
+#
+@ROMS_RUNSCR_DIR@/roms_preprocess || exit 8
+if [ -s ocean_his.nc ] ; then
+	NRREC=-1
+	LDEFOUT=F
+	ln -fs ocean_his.nc   init.nc || exit 8
+else
+	NRREC=0
+	LDEFOUT=T
+	ln -fs ccsgod-ini.nc  init.nc || exit 8
+fi
+#
+ln -fs ccsgod-grd.nc  grid.nc || exit 8
+ln -fs ccsgod-ini.nc  init.nc || exit 8
+ln -fs ccsgod-bdry.nc bdry.nc || exit 8
+ln -fs ccsgod-frc.nc forc.nc || exit 8
+#
+#  forecast loop
+#
+xc=0
+while [ $h -lt $ENDHOUR ];do
+	#
+	#  rsm
+	#
+	h=`expr $h + 0`
+	hx=`expr $h + $INCHOUR`
+	if [ $hx -lt 10 ]; then hx=0$hx; fi
+	if [ $hx -gt $ENDHOUR ] ; then
+		hx=$ENDHOUR
+	fi
+	#
+	#  link base field to properly named file	
+	#
+	fhend=`expr $INCHOUR + $NESTING_HOUR`
+	modf=`expr $fhend \/ $NESTING_HOUR`
+	if [ `expr $modf \* $NESTING_HOUR` -ne $fhend ] ; then
+		fhend=`expr \( $modf + 1 \) \* $NESTING_HOUR`
+	fi
+	#
+	#  generate rsm forecast namelist data
+	#
+	SST_GRB=`eval echo $SST_ANL`
+	SNO_GRB=`eval echo $SNO_ANL`
+	SCV_GRB=`eval echo $SNO_ANL`
+	ICE_GRB=`eval echo $ICE_ANL`
+	export SST_GRB SNO_GRB SCV_GRB ICE_GRB
+	@RSM_RUNSCR_DIR@/r_fcstparm $INCHOUR_REG $ENDHOUR $DELTAT_REG \
+					$NESTING_HOUR $INTPOST_REG $INTPGB_REG $INTSFCX $INTRESTART_REG || exit 8
+	#
+	/rhome/yeong/test/svrtest/gsm_runs/runscr/romsparm $ROMS_NTIMES $ROMS_DT $ROMS_NRST $ROMS_NHIS $ROMS_NAVG $NRREC || exit 8
+	#
+	#  generate gsm forecast namelist data
+	#
+	@GSM_RUNSCR_DIR@/fcstparm $INCHOUR $ENDHOUR $INTSFCX \
+			$INTSIG:$INTSFC:$INTPOST:$INTRESTART || exit 8
+	#
+	fh=`/rhome/yeong/test/svrtest/libs/etc/fhour sigit`
+	#
+	#  prepare for gsm execution
+	#
+	@GSM_RUNSCR_DIR@/prepfcst @GSM_NPES@
+	#
+	#  prepare for rsm execution
+	#
+	@RSM_RUNSCR_DIR@/r_prepfcst @RSM_NPES@
+	#
+	#  prepare for roms execution
+	#
+	@RSM_RUNSCR_DIR@/r_prepfcst @ROMS_NPES@
+	#
+	#  Execute forecast
+	#
+	/rhome/yeong/test/svrtest/gsm_runs/runscr/cplfcst $PROG1 @GSM_NPES@ $PROG2 @RSM_NPES@ $PROG3 @ROMS_NPES@
+	#
+	#  copy gsm files for next forecast segment
+	#
+	cp sig.ft$hx sigit || exit 8
+	mv sigp.ft$hx sigitdt  || exit 8
+	cp sfc.ft$hx sfci || exit 8
+	#
+	#  copy rsm files for next forecast segment
+	#
+	cp r_sigit.ft$hx  r_sigit   || exit 8
+	mv r_sigitdt.ft$hx r_sigitdt || exit 8
+	cp r_sfc.ft$hx  r_sfci    || exit 8
+	#
+	h=$hx
+done
+if [ linux = mac -a mpi = mpi ] ; then
+        lamclean
+        lamhalt
+fi

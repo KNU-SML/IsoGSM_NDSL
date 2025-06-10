@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+obcycle=$1
+#
+PROG=prevents
+echo `date` -- $PROG started  >>ERROR.out
+rm bufr_adpupa bufr_aircft bufr_sfcsat 2>/dev/null
+if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+	assign -R
+	assign -a $obcycle -Fcos           fort.11
+	assign -a guessig                  fort.12
+	assign -a /rhome/yeong/test/svrtest/libs/con/ssierr fort.13
+	assign -a nmcdate                  fort.14
+	assign -a bufr_adpupa -Fcos        fort.50
+	assign -a bufr_aircft -Fcos        fort.51
+	assign -a bufr_sfcsat -Fcos        fort.52
+else
+	rm -f fort.[0-9]* 2>/dev/null
+ 	ln -sf $obcycle                    fort.11
+	ln -sf guessig                     fort.12
+	ln -sf /rhome/yeong/test/svrtest/libs/con/ssierr.asc fort.13
+	ln -sf nmcdate                     fort.14
+	ln -sf bufr_adpupa                 fort.50
+	ln -sf bufr_aircft                 fort.51
+	ln -sf bufr_sfcsat                 fort.52
+fi
+if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+	NCPUS=1
+	export NCPUS
+fi
+rm -f $PROG.x
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/${PROG}.x $PROG.x
+./$PROG.x 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+if [ linux != cray -a linux != t90 -o linux != t3e ] ; then
+	rm -f fort.[0-9]* 2>/dev/null
+fi

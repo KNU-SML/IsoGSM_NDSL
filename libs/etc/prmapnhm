@@ -1,0 +1,53 @@
+#!/bin/sh
+#
+set -x
+if [ $# -ne 1 ] ; then
+  echo "Usage: prmap [runscript domaindir] [C]"
+  exit 8
+fi
+# file should be the domain.card for NHM
+file=$1
+RPROJ=0
+RTRUTH=`grep "SLAT=" $file | cut -d"=" -f2`
+RORIENT=`grep "SLON=" $file | cut -d"=" -f2`
+RDELX=`grep "DX=" $file | cut -d"=" -f2`
+RDELY=`grep "DY=" $file | cut -d"=" -f2`
+RCENLAT=`grep "FLATC=" $file | cut -d"=" -f2`
+RCENLON=`grep "FLONC=" $file | cut -d"=" -f2`
+IGRD1=`grep "NX=" $file | cut -d"=" -f2`
+JGRD1=`grep "NY=" $file | cut -d"=" -f2`
+RLFTGRD=`expr $IGRD1 / 2`
+RBTMGRD=`expr $JGRD1 / 2`
+#
+cat >prmap.parm <<EOF
+ &namloc
+ IGRD1=$IGRD1
+ JGRD1=$JGRD1
+ RPROJ=$RPROJ
+ RTRUTH=$RTRUTH
+ RORIENT=$RORIENT
+ RDELX=$RDELX
+ RDELY=$RDELY
+ RCENLAT=$RCENLAT
+ RCENLON=$RCENLON
+ RLFTGRD=$RLFTGRD
+ RBTMGRD=$RBTMGRD
+ &end
+EOF
+#
+dir=`echo $0 | sed 's?/[^/]*$??g'`
+currdir=`pwd`
+cd $dir
+PRMAPDIR=`pwd`
+echo "PRMAPDIR=$PRMAPDIR"
+export PRMAPDIR
+cd $currdir
+#
+$PRMAPDIR/prmap.x <prmap.parm 2>stderr$$.prmap
+cc=$?
+if [ $cc -ne 0 ] ; then
+  echo ' prmap execution failed'
+  exit 8
+fi
+rm stderr$$.prmap
+gradsc -l -c "open prmap.ctl"

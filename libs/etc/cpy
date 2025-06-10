@@ -1,0 +1,14 @@
+#!/bin/sh
+#
+#  copy origin source code to all other util_*
+#
+origin_dir=util_linux
+file_name=grsmooth.F
+#
+for dir in `ls -d util_*`
+do
+	if [ $dir != $origin_dir ] ; then
+		echo cp $origin_dir/$file_name $dir/.
+		cp $origin_dir/$file_name $dir/.
+	fi
+done

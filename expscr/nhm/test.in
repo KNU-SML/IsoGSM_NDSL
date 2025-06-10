@@ -1,0 +1,221 @@
+#!/bin/sh
+set -a
+#
+#  This script runs JMA non-hydrostatic model
+#
+KTST=0
+KTEND=48
+KTDTO=6
+#
+NHMDT=
+. @RUNSCR_DIR@/nhm_getdt
+#
+NHM_NPES=@NPES@
+#
+RUNNAME=N_000
+#
+#  create parm.sh which contains relevant directory names
+#  OUTER_RSM_SRCS_DIR is where you can find define.h
+#
+RSIG_DIR=
+RPGB_DIR=$RSIG_DIR
+OUTER_RSM_SRCS_DIR=
+#
+if [ -z "$RSIG_DIR" -o ! -s "$RSIG_DIR" ] ; then
+	echo "Error:  Provide RSIG_DIR"
+	exit 8
+fi
+if [ -z "$RPGB_DIR" -o ! -s "$RPGB_DIR" ] ; then
+	echo "Error:  Provide RPGB_DIR"
+	exit 8
+fi
+if [ -z "$OUTER_RSM_SRCS_DIR" -o ! -s "$OUTER_RSM_SRCS_DIR" ] ; then
+	echo "Error:  Provide OUTER_RSM_SRCS_DIR"
+	exit 8
+fi
+#
+mkdir @RUNS_DIR@/$RUNNAME 2>/dev/null
+cd @RUNS_DIR@/$RUNNAME
+CURRENT=`pwd`
+#
+@LIBS_DIR@/etc/date $RSIG_DIR/r_sigit.ft00 >out.$$
+read HH MM DD YYYY fh <out.$$
+rm out.$$
+#
+echo "$KTST $KTEND $KTDTO $NHMDT" >ktcard.txt
+#
+#  number of nhm model levels
+#
+NHM_LEVS=50
+#
+# make nhm topography
+#
+if [ ! -s org.rsm -o ! -s GLCC-SiB.rsm ] ; then
+	@RUNSCR_DIR@/nhm_mtn || exit 8
+	echo ' 1/11 nhm_mtn completed'
+else
+	echo " 1/11 nhm_mtn skipped"
+fi
+#    
+# vertical cordinate for boudary data reading latitude and longtiude from rsm
+#
+if [ ! -s flatflon_rsm.dat -o ! -s mpab.txt ] ; then
+	@RUNSCR_DIR@/nhm_flonflat || exit 8
+	echo " 2/11 nhm_flonflat completed"
+else
+	echo " 2/11 nhm_flonflat skipped"
+fi
+#
+# make rsm geoptential and land/sea distribution file
+#
+if [ ! -s rsm_dim.txt -o ! -s rsm_geopt.dat ] ; then
+	@RUNSCR_DIR@/nhm_rsm_geopt || exit 8
+	echo ' 3/11 nhm_rsm_geopt completed'
+else
+	echo " 3/11 nhm_rsm_geopt skipped"
+fi
+#
+#  find dimension sizes and other variables for editing .ctl file
+#
+read RSM_IGRD RSM_JGRD RSM_LEVS < rsm_dim.txt
+echo RSM_IGRD=$RSM_IGRD RSM_JGRD=$RSM_JGRD RSM_LEVS=$RSM_LEVS >>ERROR.out
+read NHM_STARTHOUR NHM_ENDHOUR NHM_INCHOUR NHM_DT< ktcard.txt
+echo "NHM_STARTHOUR=$NHM_STARTHOUR NHM_ENDHOUR=$NHM_ENDHOUR NHM_INCHOUR=$NHM_INCHOUR NHM_DT=$NHM_DT" >>ERROR.out
+NHM_TDIM=`expr ${NHM_ENDHOUR} / ${NHM_INCHOUR}`
+NHM_TDIM=`expr ${NHM_TDIM} + 1`
+NHM_YYYY=$YYYY
+case ${MM} in
+  '01') NHM_MMC='JAN' ;;
+  '02') NHM_MMC='FEB' ;;
+  '03') NHM_MMC='MAR' ;;
+  '04') NHM_MMC='APR' ;;
+  '05') NHM_MMC='MAY' ;;
+  '06') NHM_MMC='JUN' ;;
+  '07') NHM_MMC='JUL' ;;
+  '08') NHM_MMC='AUG' ;;
+  '09') NHM_MMC='SEP' ;;
+  '10') NHM_MMC='OCT' ;;
+  '11') NHM_MMC='NOV' ;;
+  '12') NHM_MMC='DEC' ;;
+esac
+NHM_MM=$MM
+NHM_DD=$DD
+NHM_HH=$HH
+cat << EOF >nhm_sed.dat
+s%@RSM_IGRD@%$RSM_IGRD%g
+s%@RSM_JGRD@%$RSM_JGRD%g
+s%@RSM_LEVS@%$RSM_LEVS%g
+s%@NHM_LEVS@%$NHM_LEVS%g
+s%@NHM_STARTHOUR@%$NHM_STARTHOUR%g
+s%@NHM_ENDHOUR@%$NHM_ENDHOUR%g
+s%@NHM_INCHOUR@%$NHM_INCHOUR%g
+s%@NHM_DT@%$NHM_DT%g
+s%@NHM_TDIM@%$NHM_TDIM%g
+s%@NHM_YYYY@%$NHM_YYYY%g
+s%@NHM_MM@%$NHM_MM%g
+s%@NHM_DD@%$NHM_DD%g
+s%@NHM_HH@%$NHM_HH%g
+s%@NHM_MMC@%$NHM_MMC%g
+EOF
+sed -f nhm_sed.dat @RUNSCR_DIR@/rsm3d-6h.ctl.in >rsm3d-6h.ctl
+sed -f nhm_sed.dat @RUNSCR_DIR@/rsm2d-6h.ctl.in >rsm2d-6h.ctl
+sed -f nhm_sed.dat @RUNSCR_DIR@/rsm_geopt.ctl.in >rsm_geopt.ctl
+sed -f nhm_sed.dat @RUNSCR_DIR@/soildep_veg_rsm.ctl.in >soildep_veg_rsm.ctl
+#     
+# make rsm Sib distribution file
+#
+if [ ! -s soildep_veg_rsm.dr ] ; then
+	@RUNSCR_DIR@/nhm_sib_dep_veg_arg_rsm || exit 8
+	echo ' 4/11 nhm_sib_dep_veg_arg_rsm completed'
+else
+	echo " 4/11 nhm_sib_dep_veg_arg_rsm skipped"
+fi
+#
+# read rsm map data
+#
+if [ ! -s rsm_location ] ; then
+	@RUNSCR_DIR@/nhm_read_location || exit 8
+	echo ' 5/11 nhm_read_location completed'
+else
+	echo ' 5/11 nhm_read_location skipped'
+fi
+#
+# read initial time and make the boudary and forecast shels
+#
+if [ ! -s idate.txt ] ; then
+	@RUNSCR_DIR@/nhm_read_date || exit 8
+	echo ' 6/11 nhm_read_date completed'
+else
+	echo ' 6/11 nhm_read_date skipped'
+fi
+#
+#  extract surface data from rsm history for nhm 2 dimensionl file 
+#
+cc=0
+cnt=0
+while [ $cnt -le $KTEND ] ; do
+	cntx=$cnt
+	if [ $cnt -lt 9 ] ; then
+		cntx=0$cnt
+	fi
+	if [ ! -s p2s$cntx.dat ] ; then
+		cc=8
+		break
+	fi
+	cnt=`expr $cnt + $KTDTO`
+done
+if [ $cc -ne 0 ] ; then
+	@RUNSCR_DIR@/nhm_ext2d || exit 8
+	echo ' 7/11 extract 2d completed'
+else
+	echo ' 7/11 extract 2d skipped'
+fi
+#
+# read 2 and 3 dimensional file of rsm
+#
+if [ ! -s rsm2d-6h.dat -o ! -s rsm3d-6h.dat ] ; then
+	@RUNSCR_DIR@/nhm_ext3d || exit 8
+	echo ' 8/11 nhm_make_2_3_data completed'
+else
+	echo ' 8/11 nhm_make_2_3_data skipped'
+fi
+#
+# make nhm location data
+#
+if [ ! -s domain.txt ] ; then
+	@RUNSCR_DIR@/nhm_read_domain || exit 8
+	echo ' 9/11 nhm_read_domain completed'
+else
+	echo ' 9/11 nhm_read_domain skipped'
+fi
+#
+# make boundary condition
+#
+if [ ! -s ./uvptq/org.data -o ! -s ./uvptq/uvptq.data -o \
+	! -s ./uvptq/ptgrd.data -o \
+	! -s ./uvptq/GLCC-SiB_rsm_mod -o ! -s ./uvptq/sibini_rsm.data -o \
+	! -s ./uvptq/rkind_bnd.data ] ; then
+	@RUNSCR_DIR@/nhm_make_uvptq_grads_rsm || exit 8
+	echo '10/11 nhm_make_uvptq_grads_rsm completed'
+else
+	echo '10/11 nhm_make_uvptq_grads_rsm.sh skipped'
+fi
+#
+#=============================================================
+#   NHM execution
+#=============================================================
+#
+# JOB START
+#
+. @RUNSCR_DIR@/nhm_prep || exit 8
+#
+# NAMELIST
+#
+. @RUNSCR_DIR@/nhm_parm || exit 8
+#
+#===============================
+#  nhm forecast execution
+#===============================
+#
+echo '11/11 MPI nhmfcst starting'
+@RUNSCR_DIR@/nhm_fcst || exit 8

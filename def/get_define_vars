@@ -1,0 +1,71 @@
+#!/bin/sh
+#
+list_defines="machine.h define.h"
+#
+#  if rsm or roms, add domainspec variables to cvar.env
+#
+if [ -s "$MODEL_DEFINE/domainspec" ] ; then
+	#
+	#  change is necessary to domainspec file since it is not c-processor type
+	#
+	sed '/^ *#/d
+		s/^/_/g
+		s/=/_=/g
+		s/^.*=/\L&/g
+		s/\. *$//g
+		s/^/#define /g
+		s/=/ /g' <$MODEL_DEFINE/domainspec >domainspec.h
+	list_defines="machine.h domainspec.h define.h"
+fi
+cat $list_defines | \
+	sed 's/^#define *//g
+	s/^#undef *//g
+	/#if/d
+	/#endif/d
+	/#else/d
+	/#include/d
+	s!/\*.*$!!g
+	/^[ ]*$/d
+	s/[	 ]*$//g
+	/^ *#/d' | sort -u >tmp.$$
+cp tmp.$$ tmp
+#
+cat $list_defines >cvar.F
+sed 's/ *$//g' tmp.$$| grep ' ' | \
+	sed 's/ .*$//g' | sort -u | \
+	sed 's/\(.*\)/\1=\1/g
+	s/^_/@/g
+	s/_=/@=/g
+	s/\(.*\)=/%\L\1%=/g
+	s/[ 	]*$//g' >>cvar.F
+#
+$CPP -P -I./ cvar.F | \
+	sed '/^ *$/d
+	s/\//#/g
+	s/\!/#/g
+	s/%@/_/g
+	s/@%/_/g
+	s/%.*%=/\U&/g
+	s/^%//g
+	s/%=/=/g
+	s/[ 	]*$//g
+	s/\(^.*\)=\1/\1=undefined/g' >cvar.env
+#
+uname=`uname`
+cat $list_defines >cvar_d.F
+sed 's/[ 	]*$//g
+	/ /d
+	/^#/d
+	s/\(.*\)/\1=\1/g
+	s/.*=/\L&/g' tmp.$$  >>cvar_d.F
+#
+$CPP -P -I./ cvar_d.F | \
+	sed '/^ *$/d
+	s/\//#/g
+	s/\!/#/g
+	s/.*=/\U&/g
+	s/=[^ ][^ ]*$/=undefined/g
+	s/= *$/=DEFINED/g' | \
+	sed "s/^[0-9].*=/$uname=/g" | \
+	sort -u | sort -t'=' -k 2,2  >>cvar.env
+rm tmp.$$

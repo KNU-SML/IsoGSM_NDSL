@@ -1,0 +1,123 @@
+       LOGICAL FUNCTION IW3PDS(L1, L2, KEY)
+C$$$   SUBPROGRAM  DOCUMENTATION  BLOCK
+C
+C FUNCT  IW3PDS              TEST FOR MATCH TWO CHARACTER ARRAYS
+C   PRGMMR: REJONES          ORG: NMC421      DATE: 90-06-04
+C
+C ABSTACT: TEST TWO PDS (GRIB PRODUCT DEFINITION SECTION) TO SEE
+C     IF ALL EQUAL; OTHERWISE .FALSE. IF KEY = 1, ALL 24 CHARACTERS
+C     ARE TESTED, IF KEY = 0 , THE DATE (CHARACTERS 13-17) ARE NOT
+C     TESTED. IF KEY = 2, TEST 11 OF 1ST 12 BYTES OF PDS.
+C
+C PROGRAM HISTORY LOG:
+C   88-02-22  R.E.JONES
+C   89-01-20  R.E.JONES  CONNVERT TO MICROSOFT FORTRAN 4.10
+C   89-06-19  R.E.JONES  CHANGE IW3PDB TO IW3PDS
+C   90-06-04  R E.JONES  CHANGE TO SUN FORTRAN 1.3
+C   91-03-29  R.E.JONES  CONVERT TO SiliconGraphics FORTRAN
+C   93-03-29  R.E.JONES  ADD SAVE STATEMENT
+C   93-11-03  R.E.JONES  ADD KEY=2, TEST 1ST 12 BYTES OF PDS
+C                        ADD CHANGES SO BYTE 4 OF PDS IS NOT
+C                        TESTED.
+C   94-04-04  R.E.JONES  ADD KEY=3, TEST BYTES 1-3, 8-12
+C
+C USAGE:  II = IW3PDS(L1,L2,KEY)
+C
+C   INPUT VARIABLES:
+C     NAMES  INTERFACE DESCRIPTION OF VARIABLES AND TYPES
+C     ------ --------- -----------------------------------------------
+C     L1     ARG LIST  CHARACTER ARRAY TO MATCH WITH L2,
+C                      L1 CAN ALSO BE A 6 WORD INTEGER*4 ARRAY
+C     L2     ARG LIST  CHARACTER ARRAY TO MATCH WITH L1,
+C                      L2 CAN ALSO BE A INTEGER*4 ARRAY
+C     KEY    ARG LIST  1, MATCH 24 BYTES OF PDS
+C                      0, DO NOT INCLUDE THE DATE (BYTES 13-17) IN
+C                         MATCH.
+C                      2, MATCH 11 OF 1ST 12 BYTES OF PDS, BYTE
+C                         4 (TABLE VER. NO.) IS NOT TESTED.
+C                      3, MATCH 1-3, 8-12 BYTES OF PDS
+C
+C   OUTPUT VARIABLES:
+C     NAMES  INTERFACE DESCRIPTION OF VARIABLES AND TYPES
+C     ------ --------- -----------------------------------------------
+C     IW3PDB FUNCTION  LOGICAL .TRUE. IF L1 AND L2 MATCH ON ALL CHAR.,
+C                      LOGICAL .FALSE. IF NOT MATCH ON ANY CHAR.
+C
+C EXAMPLE:  SEARCH IDTBL FOR MATCH WITH GIVEN (PDS), USE RBA IN 7TH
+C           ID WORD TO READ RECORD BY RBA.
+C
+C           INTEGER*4 IDTBL(1794), IPDS(6), RBA
+C           LOGICAL*4 IW3PDS
+C
+C           KEY = 0
+C           DO 400 I = 9,1793,7
+C             IF (IDTBL(I).EQ.0) GO TO 500
+C               IF (IW3PDS(IPDS,IDTBL(I),KEY)) THEN
+C                  RBA = IDTBL(I+6)
+C                  GO TO 600
+C               END IF
+C   400     CONTINUE
+C
+C   500     CONTINUE
+C           GO TO XXXX ... ERROR EXIT , CAN NOT FIND RECORD
+C
+C   600     ..  READ RECORD WITH RBA
+C
+C ATTRIBUTES:
+C   LANGUAGE: SiliconGraphics 3.3. FORTRAN 77
+C   MACHINE:  SiliconGraphics IRIS-4D/25, 35, INDIGO
+C
+C$$$
+C
+       CHARACTER*1 L1(24)
+       CHARACTER*1 L2(24)
+C
+       SAVE
+C
+          IW3PDS = .TRUE.
+C
+          IF (KEY.EQ.1) THEN
+            DO 10 I = 1,3
+              IF (L1(I).NE.L2(I))  GO TO 70
+   10       CONTINUE
+C
+            DO 20 I = 5,24
+              IF (L1(I).NE.L2(I))  GO TO 70
+   20       CONTINUE
+C
+          ELSE
+C
+          DO 30 I = 1,3
+              IF (L1(I).NE.L2(I))  GO TO 70
+   30     CONTINUE
+C
+C         DO NOT TEST BYTE 4, 5, 6 PDS VER. NO, COUNTRY,
+C         MODEL NUMBER. U.S. OR U.K. WAFS DATA WILL 
+C         WORK.
+C
+          IF (KEY.EQ.3) THEN
+            DO I = 7,12
+               IF (L1(I).NE.L2(I))  GO TO 70
+            END DO
+            GO TO 60
+          END IF
+C
+C         DO NOT TEST PDS VERSION NUMBER, IT MAY BE 1 OR 2
+C
+          DO 40 I = 5,12
+              IF (L1(I).NE.L2(I))  GO TO 70
+   40     CONTINUE
+          IF (KEY.EQ.2) GO TO 60
+C
+          DO 50 I = 18,24
+              IF (L1(I).NE.L2(I))  GO TO 70
+   50     CONTINUE
+          ENDIF
+C
+   60     CONTINUE
+          RETURN
+C
+   70     CONTINUE
+          IW3PDS = .FALSE.
+          RETURN
+          END

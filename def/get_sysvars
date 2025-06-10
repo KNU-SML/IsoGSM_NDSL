@@ -1,0 +1,178 @@
+#!/bin/sh
+set -a
+#
+#    Read sysvars.defs and create keyword specific variable definition script 'sysvars'
+#    Also creates "sysvars.sed" file that can be used to edit template file
+#  that contains key variables sandwiched by @ and @.
+#    Also creates "getvars" script that can be used to receive key variables
+#  from configure-lib.
+#
+dir=`echo $0 | sed 's?/[^/]*$??g'`
+currdir=`pwd`
+cd $dir
+CONFIG_SYSVARS_DIR=`pwd`
+cd $currdir
+#
+debug=yes
+#
+echo "#!/bin/sh" >sysvars
+echo "#" >>sysvars
+echo "set -x" >>sysvars
+echo "#" >>sysvars
+#
+#  extract key word values used
+#
+ grep ':' $CONFIG_SYSVARS_DIR/sysvars.defs |  \
+    sed  -e    '/^#/d'                        \
+         -e    '/=.*:/d'                      \
+         -e    's/:.*//g'                     \
+         -e    's/:/& \
+/g'                                           \
+         -e    's/[|]/&\
+/g'                                           \
+         -e    's/[@]/&\
+/g'                                           \
+         -e    's/[-]/&\
+/g'                                           \
+         -e    's/|//g'                       \
+         -e    's/@//g'                       \
+         -e    's/-//g'                    |  \
+    sort -u >keys.$$
+#
+#grep ':' $CONFIG_SYSVARS_DIR/sysvars.defs | \
+#		sed '/^#/d
+#	/=.*:/d
+#		s/:.*//g
+#		s/:/\n/g
+#		s/[|]/\n/g
+#		s/[@]/\n/g
+#		s/[-]/\n/g' | \
+#		sort -u >keys.$$
+echo "Key variables and their values used to make sysvars definition file:"
+rm sysvars.sed 2>/dev/null
+rm get_libvars 2>/dev/null
+for key in `cat keys.$$`
+do
+	keyval=\$$key
+	keyval=`eval echo $keyval`
+	echo "$key=$keyval"
+	if [ -z "$keyval" ] ; then
+		echo ERROR.  $key not defined.
+		rm keys.$$
+		exit 8
+	fi
+	#
+	# create sysvars.sed file for sed
+	#
+	keyval=`echo $keyval | sed "s/^'//g" | sed 's/^"//g' | sed "s/'$//g" | sed 's/"$//g'`
+	echo "s%@$key@%$keyval%g" | sed 's/@_/@/g' | sed 's/_@/@/g' >>sysvars.sed
+	echo "$key=\`grep '^$key=' $LIBS_DIR/configure-libs | cut -d'=' -f2\`" >>get_libvars
+done
+rm keys.$$
+chmod a+x get_libvars
+#
+#  loop for defined variables
+#
+for var in `grep '^[A-Z][A-Z0-9_][A-Z0-9_]*=' $CONFIG_SYSVARS_DIR/sysvars.defs | cut -d '=' -f1`
+do
+	count=`grep -c ":$var=" $CONFIG_SYSVARS_DIR/sysvars.defs`
+	comment=
+	#
+	#  multiple definitions
+	#
+	if [ $count -ge 1 ] ; then
+		grep "[\^:]$var=" $CONFIG_SYSVARS_DIR/sysvars.defs | grep ':' >tmp.$$
+		cut -d ':' -f1 tmp.$$ | \
+		sed 's/^/$/g
+			s/\([-+~!@#%^&<>]\)/\1$/g' | \
+		sort -u  >keys.$$
+		keys=`cat keys.$$`
+		keys=`eval echo $keys`
+		match=no
+		for key in $keys
+		do
+			grep "[:|]$key[|:]" tmp.$$ >tmp2.$$
+			if [ $? -eq 0 ] ; then
+				nmatch=`grep -c "[:|]$key[|:]" tmp.$$`
+				if [ $nmatch -gt 1 ] ; then
+					echo "multiple matches."
+					grep "[:|]$key[|:]" tmp.$$
+					echo "using the first one. Change sysvars.defs to make it unique"
+					if [ $debug = yes ] ; then
+					comment="#  $key used to extract the variable defined below"
+					fi
+					vardef=`cat tmp2.$$ | sed -n '1 p' | cut -d':' -f3-`
+				else
+					if [ $debug = yes ] ; then
+						comment="#  $key used to extract the variable defined below"
+					fi
+					vardef=`cat tmp2.$$ | cut -d':' -f3-`
+				fi
+				match=yes
+				match_key=$key
+			fi
+		done
+		if [ $match = no ] ; then
+			if [ $debug = yes ] ; then
+				comment="#  no match key. default is used for the variable defined below" >>sysvars
+			fi
+			vardef=`grep "^$var=" $CONFIG_SYSVARS_DIR/sysvars.defs` 
+			match_key=
+		fi
+	else
+			vardef=`grep "^$var=" $CONFIG_SYSVARS_DIR/sysvars.defs | head -1`
+			match_key=
+	fi
+	var_done=\$${var}_done
+	var_done=`eval echo $var_done`
+	if [ "$var_done" != done ] ; then
+		if [ ! -z "$comment" ] ; then
+			echo $comment >>sysvars
+		fi
+		echo $vardef | grep '<<' >/dev/null 2>/dev/null
+		if [ $? -ne 0 ] ; then
+			echo $vardef >>sysvars
+		else
+			echo $var | grep PARALLEL >/dev/null 2>/dev/null
+			if [ $? -eq 0 ] ; then
+				header_out=header_parallel
+			fi
+			echo $var | grep SERIAL >/dev/null 2>/dev/null
+			if [ $? -eq 0 ] ; then
+				header_out=header_serial
+			fi
+			if [ ! -z "$match_key" ] ; then
+				sed -n "/[:|]$match_key[:|].*$var=<<EOF/,/^EOF/ p" \
+					$CONFIG_SYSVARS_DIR/sysvars.defs | \
+					sed '/<</d
+					/EOF/d' >$var
+			else
+				sed -n "/^$var=<<EOF/,/^EOF/ p" \
+					$CONFIG_SYSVARS_DIR/sysvars.defs | \
+					sed '/<</d
+					/EOF/d' >$var
+			fi
+			echo "#$vardef file created" >>sysvars
+		fi
+	fi
+	eval ${var}_done=done
+done
+#
+#  add libs directory related variables
+#
+echo "LIBS_DIR=$LIBS_DIR" >>sysvars
+#
+chmod a+x sysvars
+./sysvars 2>tmp.$$
+sed 's/^[^A-Z]*//g' tmp.$$ | sed '/^#/d
+				s/^/s!@/g
+				s/\(^[^=]*\)="/\1=/g' | \
+				sed "s/\(^[^=]*\)='/\1=/g
+				s/'$//g" | \
+				sed 's/"$//g
+				s/\(^[^=]*\)=/\1@!/g
+				s/$/!g/g' >>sysvars.sed
+rm tmp.$$ tmp2.$$ keys.$$
+sed '/set -x/d' sysvars >tmp.$$
+mv tmp.$$ sysvars
+chmod a+x sysvars

@@ -1,0 +1,286 @@
+#!/bin/sh
+cd $currdir
+progname="`echo $0 | sed 's:^\./\./:\./:'`"
+print_usage() {
+cat <<EOF
+Usage: ${progname} [--version=VERSION] [--date=DATE] [--model=MODEL1:MODEL2:MODEL3:...] [--runscript=RUNSCRIPT] [--model_res_area=NUMBER]
+            [--enable-tar]
+            [--enable-debug_compile]
+            [--enable-mpi]
+            [--enable-osu2]
+            [--enable-noah]
+            [--enable-nobsflw]
+            [--enable-noahydro]
+            [--enable-noah_jun05]
+            [--enable-vic1]
+            [--enable-r2]
+            [--enable-kimgwd]
+            [--enable-cldw_zc]
+            [--enable-cldw_si]
+            [--enable-cldw_sy3]
+            [--enable-cldw_sy3n]
+            [--enable-cldw_sy5]
+            [--enable-cldw_sy6]
+            [--enable-cld_rh]
+            [--enable-cld_randal]
+            [--enable-cldw2rad --disable-cldw2rad]
+            [--enable-insacld --disable-insacld]
+            [--enable-kuo]
+            [--enable-sas]
+            [--enable-rasv2]
+            [--enable-ccmcnv]
+            [--enable-kf2]
+            [--enable-hydro]
+            [--enable-stdamp  --disable-stdamp ]
+            [--enable-stdamp3 --disable-stdamp3]
+            [--enable-gsmdamp  --disable-gsmdamp ]
+            [--enable-diffq --disable-diffq]
+            [--enable-psplit --disable-psplit]
+            [--enable-rsmvectorize]
+            [--enable-pgbpara]
+            [--enable-pgbspara]
+            [--enable-pgbnpara]
+            [--enable-setmtnzero]
+            [--enable-baseout]
+            [--enable-reset_fhour]
+            [--enable-dg3]
+            [--enable-dgz]
+            [--enable-ken]
+            [--enable-dbg]
+            [--enable-noprint]
+            [--enable-comreal4 --disable-comreal4]
+            [--enable-mtn4m]
+            [--enable-gtopo30 ]
+            [--enable-mrgpost]
+            [--critsnow=CRITSNOW]
+            [--enable-adjsoilw]
+            [--enable-nfdr]
+            [--enable-riv1 or riv05]
+	[--skip-libs]
+	[--skip-intro]
+	[--skip-cvsco]
+	[--continue]
+where
+  VERSION  =  cvs model version (noah,losalamos, hydro, ....).  
+								Default is currently set to seoul. 
+	DATE   =  yyyymmdd of the files of the cvs repository (for version=VERSION).
+	MODEL  =  [gsm rsm gdas crsm scm roms] or any combinations of gsm rsm and roms separated by colon.  roms not yet implemented.  If not given, interactively define later
+  RUNSCRIPT = [gsm rsm gsmrt grsmrt cases amip rcases csm]
+	NUMBER =  Item number in resolution/area list
+--enable-tar      create tar package
+--enable-debug_compile     compilation with -g option
+--enable-mpi      mpi integration
+--enable-osu2     use OSU version 2 land surface scheme
+--enable-noah     use NOAH land surface scheme
+--enable-noahydro use NOAH land surface scheme with correct budget
+--enable-noah_jun05 use NOAH land surface scheme with update by Massimo
+--enable-nobsflw  turn off base from from osu scheme
+--enable-vic1     use VIC land surface scheme (without tiling)
+--enable-r2       simulates Reanlysis-2 physics
+--enable-insacld  insa's rsm cloud tuning for slingo scheme
+--enable-cldw_zc  Zhao-Carr cloud water scheme
+--enable-cldw_si  Somerville-Iacobellis cloud water scheme
+--enable-cldw_sy3 Song-You Hong cloud water and rain water prediction scheme
+--enable-cldw_sy3n Updated version of cldw_sy3
+--enable-cldw_sy5 cldw_sy3 plus ice and snow
+--enable-cldw_sy6 cldw_sy5 plus graupel
+--enable-cld_rh   cloudiness from relative humidity
+--enable-cld_randal  cloudiness based on Randal scheme (cloud water and rh)
+--enable-cldw2rad cloud water used in radiation
+--enable-kimgwd   use Kim and Arakawa's more complex gravity wave drag scheme
+--enable-kuo      use Kuo's convection scheme
+--enable-sas      use Simplified Arakawa Schubert convection scheme.
+--enable-rasv2    use version 2 Relaxed Arakawa Schubert scheme that includes
+                  down draft mechanism
+--enable-ccmcnv   use NCAR CCM Zhang McFarlane convection scheme.
+--enable-hydro    exact hydrology budget
+--enable-diffq    diffusion of moisture enabled
+--enable-stdamp   rsm spectral tendency damping
+--enable-stdamp3  rsm log of surface pressure correction
+--enable-gsmdamp  gsm spectral nudging
+--enable-psplit   process splitting time scheme
+--enable-rsmvectorize   rsm long vector for physics and dynamics
+--enable-pgbpara  pgb parallel io
+--enable-pgbspara pgb parallel computation and serial io
+--enable-pgbnpara pgb serial computation and io
+--enable-dg3      generates 3-dimensional diagnostics (dia file)
+--enable-dgz      generates zonally averaged diagnostics
+--enable-ken      generates model output time series (MOLTS)
+--enable-dbg      generates diagnostic prints for debugging
+--enable-noprint  suppress all the printout (for mpi efficiency).
+--enable-comreal4 use real4 for mpi communications
+--enable-mtn4m    use 4 minutes mountain
+--enable-gtopo30  use original gtopo30 for high resolution rsm
+--enable-mtnzero  set moutain to zero over ocean (can be noisy)
+--enable-baseout  rsm post processed basefield output.
+--enable-reset_fhour  reset fhour to zero at the end of the year
+--enable-mrgpost  merge post processor into the forecast
+--critsnow=CRITSNOW  critical 850mb temperature for rain/snow. 
+--enable-adjsoilw adjust soil moisture using observed precipitation.
+--enable-nfdr     national fire danger rating
+--enable-riv1/riv05  river routing scheme. 1deg or 0.5deg.
+--skip-libs       skip generation of libs
+--skip-intro      skip introductory print
+--skip-cvsco      skip cvsco
+--continue        continue after failed install
+
+If install failes with --version=VERSION for old VERSIONs, make sure that the
+mchine/model/scripts for that version were available at that time.
+
+If you encounter any problems, write to kana@ucsd.edu
+EOF
+}
+
+
+e_args="tar mpi debug_compile osu2 noah noahydro noah_jun05 nobsflw vic1 r2 kimgwd insacld cldw_zc cldw_si cldw_sy3 cldw_sy3n cldw_sy5 cldw_sy6 cld_rh cld_randal cldw2rad kuo sas rasv2 ccmcnv kf2 hydro stdamp stdamp3 gsmdamp diffq psplit rsmvectorize pgbpara pgbspara pgbnpara dg3 dgz ken dbg noprint comreal4 mtn4m mtnzero baseout reset_fhour gtopo30 mrgpost adjsoilw nfdr riv1 riv05 libs intro cvsco"
+
+f_args="model_lib model model_define institution scm_obs rsmtnres grmtnres critsnow"
+
+s_args="trmm37 toga40 gate19 arms38 arms18"
+
+usage_dir=$install_dir
+for mdl in $AVAILABLE_MODELS_LIST
+do
+	list=`ls $usage_dir/expscr/$mdl/*.in | sed 's%.*/%%g' | sed 's/\.in//g'`
+	eval ${mdl}_script_list="\"`echo $list`\""
+done
+count=0
+for arg
+do
+	count=0
+	case "$arg" in
+		--version=*)
+		version=`echo $arg | sed 's/[-a-z_]*=//'` 
+		count=`expr $count + 1` ;;
+		--model=*)
+		model=`echo $arg | sed 's/[-a-z_]*=//'` 
+		count=`expr $count + 1` ;;
+		--date=*)
+		date=`echo $arg | sed 's/[-a-z_]*=//'` 
+		count=`expr $count + 1` ;;
+		--arch=*)
+		arch=`echo $arg | sed 's/[-a-z_]*=//'` 
+		count=`expr $count + 1` ;;
+		--model_res_area=*)
+		model_res_area=`echo $arg | sed 's/[-a-z_]*=//'` 
+		count=`expr $count + 1` ;;
+		--critsnow=*)
+		critsnow=`echo $arg | sed 's/[-a-z_]*=//'` 
+		count=`expr $count + 1` ;;
+		--scm_obs=*)
+		scm_obs=`echo $arg | sed 's/[-a-z_]*=//'` 
+		count=`expr $count + 1` ;;
+		--runscript=*)
+		runscript=`echo $arg | sed 's/[-a-z_]*=//'` 
+		count=`expr $count + 1` ;;
+		--help | -help | -h)
+		print_usage >& 2
+		exit ;;
+	esac
+	if [ $count -gt 0 ] ; then
+		continue
+	fi
+	count=0
+	for e_arg in $e_args
+	do
+		if [ "$arg" = "--enable-${e_arg}" ] ; then
+			eval enable_${e_arg}=yes
+			eval echo enable_${e_arg}=yes >>install.log
+			count=`expr $count + 1`
+			continue 2
+		fi
+	done
+	count=0
+	for e_arg in $e_args
+	do
+		if [ "$arg" = "--disable-${e_arg}" ] ; then
+			eval disable_${e_arg}=yes
+			eval echo disable_${e_arg}=yes >>install.log
+			count=`expr $count + 1`
+			continue 2
+		fi
+	done
+	count=0
+	for e_arg in $e_args
+	do
+		if [ "$arg" = "--skip-${e_arg}" ] ; then
+			eval skip_${e_arg}=yes
+			eval echo skip_${e_arg}=yes >>install.log
+			count=`expr $count + 1`
+			continue 2
+		fi
+	done
+	count=0
+	if [ "$arg" = "--continue" ] ; then
+		continue=yes
+		count=`expr $count + 1`
+	fi
+        for f_arg in $f_args
+        do
+                echo $arg | grep "\-\-$f_arg=" >/dev/null 2>/dev/null
+                if [ $? -eq 0 ] ; then
+                        temp=`echo $arg | cut -d'=' -f2`
+                        eval $f_arg=$temp
+                        eval echo $f_arg=$temp >>configure.log
+                        count=`expr $count + 1`
+                fi
+        done
+        for s_arg in $s_args
+        do
+                if [ "$arg" = "--scm_obs=${s_arg}" ] ; then
+                        temp=`echo $arg | cut -d'=' -f2`
+                        scm_obs=$temp
+                        count=`expr $count + 1`
+                fi
+        done
+done
+if [ $# -gt 0 -a $count -eq 0 ] ; then
+	print_usage >& 2
+	echo invalid argument $arg
+	exit 8
+fi
+echo version=$version >>install.log
+echo model=$model >>install.log
+echo arch=$arch >>install.log
+if [ "$model" = scm ] ; then
+	echo scm_obs=$scm_obs >>install.log
+fi
+#
+#  usage setup [version]
+#
+if [ -z "$version" ] ; then
+	if [ -z "$default_version" ] ; then
+		arg=
+	else
+		arg="-r $default_version"
+	fi
+elif [ "$version" = trunk ] ; then
+        arg=
+else
+        arg="-r $version"
+fi
+#
+#  usage setup [date]
+#
+if [ ! -z "$date" ] ; then
+        arg="$arg -D $date"
+fi
+#
+#  add data log
+#
+if [ -z "$date" ] ; then
+        date=`date`
+fi
+echo date=$date >>install.log
+echo ' ' >>install.log
+#
+if [ "$enable_debug_compile" = yes ] ; then
+        debug=yes
+else
+        debug=no
+fi
+#
+if [ "$continue" = yes ] ; then
+	skip_intro=yes
+	skip_cvsco=yes
+fi

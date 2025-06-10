@@ -1,0 +1,1474 @@
+#
+#  This is the source of the COMPILER configuration.  The script 
+#  config_compile read this file and create compile.h file.
+#
+#  File format is as follows:
+#    For default, simply define variable starting from first column
+#    for example:
+#    CP=cp  starting first column
+#
+#    For other conditional variables, define what key is used in
+#    the definition, delimited by colon (:) and key values, separated by (|)
+#    for multiple values, then another delimiter colon and the variable
+#    definition. Multiple keys can be combined by symbols @-+%^&.  For example:
+#       COMPILER-MACHINE@INSTITUTION:intel-ibmsp@ncar:FORT_FLAG="-O3"
+#    indicates that FORT_FLAG will be set to "-O3" if COMPILER is set to intel,
+#    MACHINE is set to ibmsp and INSTITUTION is set to ncar.
+#
+#  config_compile script reads this file and generate COMPILER configuration
+#  file, compile.h based on key definitions (compile.h).
+#
+#  Currently available key words are:  
+#    INSTITUTION   ..... name of institution (e.g. ecpc)
+#    MACHINE       ..... machine producer name (e.g. ibmsp, dec, hp, es, origin, ...)  
+#                                  linux can beused for generic desktop with linux operating system)
+#    NICKNAME      ..... name of machine (e.g. bluefire, compas, bassi, ranger)
+#    COMPILER      ..... name of the compiler (e.g. pgi, intel)
+#    MARCH         ..... machine architecture (e.g. single or mpi) 
+#    THREAD        ..... threading (yes or no.  if MARCH is mpi, yes turns to hybrid)
+#    MPIVSN        ..... mpi library version (e.g. vsn2, openmpi)
+#    BIT64         ..... 64-bit compilation option (e.g. bit64)
+#    LINUXVSN      ..... Linux version (e.g. 7.1)
+#    LINUXDIST     ..... Linux distribution (e.g. redhat, debian, ...)
+#    NETCDFVSN     ..... netcdf version [4, or 3]
+#    DEBUG         ..... debug option (yes, no)
+#    
+#  Note that some of the key variables are redundant and therefore it is
+#  not necessary to define all the key variables.  For example, bluefire
+#  is ibm machine at ncar and uses ibmsp compiler, and therefore, it is not 
+#  necessary to specify MACHINE, COMPILER.
+#
+GRSM_BASE_DIR=/rhome/yeong/test/svrtest
+#    
+AVAILABLE_MODELS_LIST="gsm rsm crsm nhm roms scm gdas cpl"
+#
+GSM_PROGS="share co2 mtn chgr cnvaer cnvalb albaer sfcl pgb sgb sfc0 p2sig sigtool gsml fcst"
+GSM_MPI_PROGS="mpi sfcl_par gsml_par fcst_par"
+CRSM_PROGS="share rsml sfcl rsml gsml rmtn rinpg rpgb co2 rsfc0 p2sig mtn cnvaer cnvalb albaer rfcst"
+CRSM_MPI_PROGS="rmpi sfcl_par rsml_par gsml_par rpgb_par rfcst_par"
+RSM_PROGS="share rsml sfcl rsml gsml rmtn rinpg rpgb co2 rsfc0 p2sig mtn cnvaer cnvalb albaer rfcst"
+RSM_MPI_PROGS="rmpi sfcl_par rsml_par gsml_par rpgb_par rfcst_par"
+NHM_PROGS="nhm_mtn nhm_others"
+NHM_MPI_PROGS=
+SCM_PROGS="share prescm co2 mtn sfcl pgb cnvaer cnvalb albaer gsml fcst"
+SCM_MPI_PROGS="mpi"
+ROMS_PROGS="rsml rmtn"
+ROMS_MPI_PROGS=
+GDAS_PROGS="share co2 mtn chgr cnvaer cnvalb albaer sfcl pgb sgb sfc0 p2sig sigtool gsml fcst cldtune combrtrh3 precipadj acqc cqc oiqc prevents ssi combbufr combobog edbuoy eddrib ednosat edrejx edsatw edswnd edupat ednosat fixpaobs grepsat postvents"
+GDAS_MPI_PROGS="gsml_par fcst_par mpi"
+#
+SHELL=/bin/sh
+AR=ar
+AS=as
+CP=cp
+RM=rm
+CD=cd
+CC=cc
+NHM_CC=gcc
+MAKE=make
+MKDIR=mkdir
+CHMOD=chmod
+ECHO=echo
+RANLIB=ranlib
+PERL=perl
+ROMS_AR_FLAGS=r
+NHM_AR_FLAGS=rv
+#
+MKDIR_P="mkdir -p"
+RM_F="rm -f"
+MACHINE-BIT64:ibmsp-yes:ROMS_AR_FLAGS="-X 64"
+#
+#  1.  FTNID
+#
+FTNID=fort.
+MACHINE:hp:FTNID=ftn
+#
+#  2. CPP
+#
+CPP='gcc -E'
+MACHINE@INSTITUTION:ibmsp@ncar:CPP=/usr/ccs/lib/cpp
+MACHINE-COMPILER:linux-intel:CPP='gcc -E'
+MACHINE:ibmsp:CPP=/usr/lib/cpp
+MACHINE:cray|dec:t3e:t90:CPP='cpp -C'
+MACHINE:es|nec:CPP=/usr/lib/cpp
+MACHINE:hp|sgi|sun:CPP=cpp
+MACHINE@INSTITUTION:mac@ecpc:CPP=$LIBS_DIR/etc/util_mac/cppmac
+MACHINE:origin:CPP=cc
+#
+#  ROMS_CPP
+#
+ROMS_CPP=$CPP
+MACHINE:linux:ROMS_CPP=/usr/bin/cpp
+#
+#  3.  ROMS CPP flags
+#
+ROMS_CPPFLAGS="-P"
+#
+#  NHM_CPP
+#
+NHM_CPP=$CPP
+MACHINE:linux:NHM_CPP=/usr/bin/cpp
+#
+#  3.  NHM CPP flags
+#
+NHM_CPPFLAGS="-P -C"
+#
+#  4.  index for size of record
+#
+NAINIT_INDEX=12
+NICKNAME:atlas|compas2:NAINIT_INDEX=8
+#
+#  5.  bufer int size
+#
+BUFR_INT_SIZE="sizeof(bufr)"
+MACHINE:dec|ibmsp:BUFR_INT_SIZE=4
+#
+#  6.  Compiler for model supplemental programs, libraries and utilities
+#
+MODELSUP_F77=f77
+MACHINE:cray|dec|esc|macpro|nec|origin|t3e|t90:MODELSUP_F77=f90
+MACHINE:sx6:MODELSUP_F77=sxf90
+MACHINE:sgi|sun|hp:MODELSUP_F77=f77
+MACHINE:mac:MODELSUP_F77=xlf90
+MACHINE-COMPILER:linux-pgi:MODELSUP_F77=pgf90
+MACHINE-COMPILER:linux-intel:MODELSUP_F77=ifort
+MACHINE:es:MODELSUP_F77=esf90
+MACHINE@INSTITUTION:ibmsp@ncar:MODELSUP_F77=xlf90_r
+#
+# 7.  MODEL fortran compiler for serial code
+#
+MODEL_SINGLE_F77=f90
+COMPILER:intel:MODEL_SINGLE_F77=ifort
+COMPILER:pgi:MODEL_SINGLE_F77=pgf90
+MACHINE:tacc:MODEL_SINGLE_F77=pgf90
+MACHINE:c90|cray|dec|hp|origin:F77|t3e|t90:MODEL_SINGLE_F77=f90
+MACHINE:es:MODEL_SINGLE_F77=esf90
+MACHINE:sgi|sun:MODEL_SINGLE_F77=f77
+MACHINE:sx6:MODEL_SINGLE_F77=sxf90
+#
+# 8.  MODEL fortran compiler for mpi code
+#
+MODEL_MPI_F77=f90
+MPIVSN-NICKNAME:openmpi-compas:MODEL_MPI_F77=/share/apps/openmpi-1.2.6/pgi/bin/mpif90
+MACHINE:c90|cray|dec|hp|origin:F77|t3e|t90:MODEL_MPI_F77=f90
+MACHINE:es:MODEL_MPI_F77=esmpif90
+NICKNAME-INSTITUTION:franklin-nersc:MODEL_MPI_F77=ftn
+NICKNAME:atlas|compas|:MODEL_MPI_F77=mpif90
+NICKNAME:isotope:MODEL_MPI_F77=mpif90
+NICKNAME:isotope2:MODEL_MPI_F77=mpif90
+NICKNAME:isotope3:MODEL_MPI_F77=mpif90
+NICKNAME:creed:MODEL_MPI_F77=mpif90
+NICKNAME:roses:MODEL_MPI_F77=mpif90
+NICKNAME:guns:MODEL_MPI_F77=mpif90
+NICKNAME:ha8000:MODEL_MPI_F77=mpif90
+NICKNAME:dynamic:MODEL_MPI_F77=mpif90
+MACHINE:nec|tacc:MODEL_MPI_F77=mpif90
+MACHINE:mac:MODEL_MPI_F77=xlf90
+MACHINE:macpro:MODEL_MPI_F77=mpif77
+MACHINE:sx6:MODEL_MPI_F77=sxmpif90
+COMPILER:intel:MODEL_MPI_F77=ifort
+NICKNAME:shui:MODEL_MPI_F77=ifort
+NICKNAME:naam:MODEL_MPI_F77=ifort
+MACHINE@INSTITUTION:ibmsp@ncar:MODEL_MPI_F77=mpxlf95_r
+NICKNAME-MPIVSN:atlas-openmpi:MODEL_MPI_F77=/share/apps/openmpi-1.3.3/pgi/bin/mpif90
+NICKNAME:stampede:MODEL_MPI_F77=mpif90
+NICKNAME@INSTITUTION:hpc@fsu:MODEL_MPI_F77=mpif90
+#
+#  9.  UTILITY, MODELIB, W3LIB and BFLIB compilers
+#
+UTIL_F77=$MODELSUP_F77
+MODELIB_F77=$MODELSUP_F77
+W3LIB_F77=$MODELSUP_F77
+BFLIB_F77=$MODELSUP_F77
+#
+#  W3lib directory
+#
+W3LIB_DIR=w3lib
+MACHINE:cray:W3LIB_DIR=w3lib_cray
+MACHINE:dec:W3LIB_DIR=w3lib_dec
+MACHINE:es:W3LIB_DIR=w3lib_es
+MACHINE:hp:W3LIB_DIR=w3lib_hp
+MACHINE:ibmsp:W3LIB_DIR=w3lib_ibmspbv
+MACHINE-COMPILER:linux-pgi:W3LIB_DIR=w3lib_linux
+MACHINE-COMPILER:linux-intel:W3LIB_DIR=w3lib_intel
+MACHINE:mac:W3LIB_DIR=w3lib_mac
+MACHINE:nec:W3LIB_DIR=w3lib_nec
+MACHINE:origin:W3LIB_DIR=w3lib_origin
+MACHINE:sgi:W3LIB_DIR=w3lib_sgi
+MACHINE:sun:W3LIB_DIR=w3lib_sun
+MACHINE:sx6:W3LIB_DIR=w3lib_sx6
+MACHINE:t3e:W3LIB_DIR=w3lib_t3e
+MACHINE:t90:W3LIB_DIR=w3lib_t90
+#
+#  Util directory
+#
+UTIL_DIR=util_linux
+MACHINE:cray:UTIL_DIR=util_cray
+MACHINE:dec:UTIL_DIR=util_dec
+MACHINE:es:UTIL_DIR=util_es
+MACHINE:hp:UTIL_DIR=util_hp
+MACHINE:ibmsp:UTIL_DIR=util_ibmspbv
+MACHINE-COMPILER:linux-pgi:UTIL_DIR=util_linux
+MACHINE-COMPILER:linux-intel:UTIL_DIR=util_intel
+MACHINE:mac:UTIL_DIR=util_mac
+MACHINE:nec:UTIL_DIR=util_nec
+MACHINE:origin:UTIL_DIR=util_origin
+MACHINE:sgi:UTIL_DIR=util_sgi
+MACHINE:sun:UTIL_DIR=util_sun
+MACHINE:sx6:UTIL_DIR=util_sx6
+MACHINE:t3e:UTIL_DIR=util_t3e
+MACHINE:t90:UTIL_DIR=util_t90
+#
+#  Bufrlib directory
+#
+BUFRLIB_DIR=bufrlib_linux
+MACHINE:cray:BUFRLIB_DIR=bufrlib_cray
+MACHINE:dec:BUFRLIB_DIR=bufrlib_dec
+MACHINE:hp:BUFRLIB_DIR=bufrlib_hp
+MACHINE:ibmsp:BUFRLIB_DIR=bufrlib_ibmspbv
+MACHINE:linux-pgi:BUFRLIB_DIR=bufrlib_linux
+MACHINE:origin:BUFRLIB_DIR=bufrlib_origin
+MACHINE:sgi:BUFRLIB_DIR=bufrlib_sgi
+MACHINE:sun:BUFRLIB_DIR=bufrlib_sun
+MACHINE:t90:BUFRLIB_DIR=bufrlib_t90
+#
+#  10.  ROMS compilers
+#
+ROMS_F77=f77
+MACHINE-MARCH:ibmsp-single|ibmsp-thread:ROMS_F77=xlf95_r
+MACHINE-MARCH:ibmsp-mpi|ibmsp-hybrid:ROMS_F77=mpxlf95_r
+NICKNAME:isotope2:ROMS_F77=mpif90
+NICKNAME:isotope3:ROMS_F77=mpif90
+NICKNAME:creed:ROMS_F77=mpif90
+NICKNAME:roses:ROMS_F77=mpif90
+NICKNAME:guns:ROMS_F77=mpif90
+NICKNAME:stampede:ROMS_F77=mpif90
+NICKNAME@INSTITUTION:hpc@fsu:ROMS_F77=mpif90
+NICKNAME-MPIVSN:atlas-openmpi:ROMS_F77=/share/apps/openmpi-1.3.3/pgi/bin/mpif90
+NICKNAME-MPIVSN:atlas-2:ROMS_F77=/share/apps/mpich2/pgi/bin/mpif90
+NICKNAME-MPIVSN:atlas-1:ROMS_F77=mpif90
+NICKNAME-MARCH:compas-mpi:ROMS_F77=/opt/mpich/myrinet/pgi/bin/mpif90
+NICKNAME-MPIVSN:compas-openmpi:ROMS_F77=/share/apps/openmpi-1.2.6/pgi/bin/mpif90
+MACHINE-COMPILER:linux-intel:ROMS_F77=ifort
+MACHINE-COMPILER:linux-pgi:ROMS_F77=pgf90
+#
+#  11.  ROMS supplementary program compilers
+#
+ROMSSUP_F77=f77
+MACHINE:ibmsp:ROMSSUP_F77=xlf95_r
+NICKNAME:atlas:ROMSSUP_F77=pgf90
+NICKNAME:compas:ROMSSUP_F77=pgf90
+MACHINE-COMPILER:linux-intel:ROMSSUP_F77=ifort
+MACHINE-COMPILER:linux-pgi:ROMSSUP_F77=pgf90
+#
+#  12.  FORECAST SUPPLEMENTAL PROGRAMS FORT_FLAGS 
+#
+MODELSUP_FORT_FLAGS="-r8 -O2 -Msave -Mrecursive -Mdalign -DLINUX -byteswapio"
+NICKNAME:atlas:MODELSUP_FORT_FLAGS="-r8 -O2 -Msave -Mrecursive -Mdalign -DLINUX -byteswapio -mcmodel=medium"
+NICKNAME:compas:MODELSUP_FORT_FLAGS="-r8 -O2 -Msave -Mrecursive -Mdalign -DLINUX -byteswapio"
+MACHINE:ibmsp:MODELSUP_FORT_FLAGS="-O3 -qarch=auto -qstrict -qrealsize=8 -qnosave -qmaxmem=-1 -qfixed=132"
+MACHINE:dec:MODELSUP_FORT_FLAGS="-r8 -i8 -O4 -fpe2 -fast"
+MACHINE:hp:MODELSUP_FORT_FLAGS="-R8 +O3"
+COMPILER:intel:MODELSUP_FORT_FLAGS="-r8 -O2 -convert big_endian -shared-intel -mcmodel=medium"
+MACHINE:mac:MODELSUP_FORT_FLAGS="-O3 -Q -qfixed -qrealsize=8 -qsave -qstrict -qextname"
+MACHINE:macpro:MODELSUP_FORT_FLAGS="-N113 -O -YEXT_NAMES=LCS -YEXT_SFX=_"
+MACHINE:origin|sgi:MODELSUP_FORT_FLAGS="-O2 -r8"
+MACHINE:sun:MODELSUP_FORT_FLAGS="-xtypemap=real:64 -O4 -cg89"
+MACHINE-LINUXVSN:linux-7.2:MODELSUP_FORT_FLAGS="-r8 -O2 -mp -Mrecursive -Mdalign -DLINUX -byteswapio"
+MACHINE:cray|t3e|t90:MODELSUP_FORT_FLAGS="-O2"
+MACHINE:nec|sx6:MODELSUP_FORT_FLAGS='-Cvopt -R2 -Wf"-L source -pvctl fullmsg vwork=stack noassume" -ftrace -f3 -ew -I./MODS -llapack_64 -lblas_64 -lfft_64'
+MACHINE-MARCH:es-single:MODELSUP_FORT_FLAGS='-Cvopt -ftrace -R2 -float0 -f3 -ew -I./MODS -lasl64 -P stack -pi -Wf"-M nozdiv noflovf noinv -L source -pvctl fullmsg vwork=stack noassume loopcnt=10000000"'
+MACHINE-MARCH:es-thread:MODELSUP_FORT_FLAGS="-Cvopt-f3 -ew -I./MODS -llapack_64 -Pauto"
+DEBUG:yes:MODELSUP_FORT_FLAGS="-g -C"
+#
+# 13.  MODELSUP LOAD FLAGS
+#
+MODELSUP_LOAD_FLAGS=$MODELSUP_FORT_FLAGS
+MACHINE-COMPILER:linux-pgi:MODELSUP_LOAD_FLAGS="-r8 -O2 -lpgmp -Mrecursive -Mdalign -DLINUX -byteswapio"
+MACHINE-COMPILER:linux-intel:MODELSUP_LOAD_FLAGS="-r8 -O2 -convert big_endian"
+MACHINE-LINUXVSN:linux-7.2:MODELSUP_LOAD_FLAGS="-r8 -O2 -lpgmp -lpthread -Mrecursive -Mdalign -DLINUX -byteswapio"
+MACHINE:macpro:MODELSUP_LOAD_FLAGS="-N113 -O -YEXT_NAMES=LCS -YEXT_SFX=_ -lU77"
+#
+#  NHM compiler
+#
+NHM_F77=f77
+MACHINE-MARCH:linux-single:NHM_F77=pgf90
+MACHINE-MARCH:linux-mpi:NHM_F77=mpif90
+#
+#  NHM program fort flags
+#
+NHM_FORT_FLAGS=
+MACHINE-MARCH:linux-single:NHM_FORT_FLAGS="-r8 -byteswapio"
+MACHINE-MARCH:linux-mpi:NHM_FORT_FLAGS="-mcmodel=medium -Mrecursive -Mdalign -DLINUX -Mbyteswapio -Mextend -l/share/apps/mpich1/pgi/include"
+#
+#  NHM program load flags
+#
+NHM_LOAD_FLAGS=
+MACHINE-MARCH:linux-single:NHM_LOAD_FLAGS="-r8 -byteswapio"
+MACHINE-MARCH:linux-mpi:NHM_LOAD_FLAGS="-Mrecursive -Mdalign -DLINUX -Mbyteswapio -Mextend"
+#
+#  NHM supplemental program compiler
+#
+NHMSUP_F77=f77
+MACHINE:linux:NHMSUP_F77=pgf90
+#
+#  NHM supplemental program fort flags
+#
+NHMSUP_FORT_FLAGS=
+MACHINE:linux:NHMSUP_FORT_FLAGS="-r8 -byteswapio"
+#
+#
+#
+NHMNMTN_FORT_FLAGS=
+MACHINE:linux:NHMNMTN_FORT_FLAGS="-Mrecursive -Mdalign -DLINUX -byteswapio"
+#
+#  NHM supplemental program load flags
+#
+NHMSUP_LOAD_FLAGS=
+MACHINE:linux:NHMSUP_LOAD_FLAGS="-r8 -byteswapio"
+#
+#  14.  MPICH_DIR
+#
+MPICH_DIR=
+MACHINE:dec:MPICH_DIR=/usr/opt/MPI196
+NICKNAME:shui:MPICH_DIR=/usr
+NICKNAME:naam:MPICH_DIR=/usr
+NICKNAME:isotope:MPICH_DIR=/usr/local/mpich
+NICKNAME:isotope2:MPICH_DIR=/usr/local/openmpi-1.5.4-intel64-v11.1.069
+NICKNAME:isotope3:MPICH_DIR=/opt/mpich/intel/19.0.3/3.2
+NICKNAME:creed:MPICH_DIR=/usr/local/mpi/intel/mvapich2-1.8.1
+NICKNAME:roses:MPICH_DIR=/usr/local/mpi/intel18/mvapich2-2.2
+NICKNAME:guns:MPICH_DIR=/usr/local/mpi/intel18/mvapich2-2.2
+NICKNAME:ha8000:MPICH_DIR=/opt/itc/mpi/mpich-mx-intel11
+NICKNAME:dynamic:MPICH_DIR=/usr/geosys/x86_64/mpich/1.2.7p1-intel10
+MACHINE@INSTITUTION:linux@sdsc:MPICH_DIR=/opt/mpich-vmi-2.0.1-1-gcc
+INSTITUTION:purdue:MPICH_DIR=/opt/teragrid/ia32/mpich-p4-1.2.5.2-gcc-r1
+INSTITUTION-NICKNAME:nersc-franklin:MPICH_DIR=/opt/mpt/3.5.0/xt/mpich2-pgi
+NICKNAME-MPIVSN:stampede-2:MPICH_DIR=/opt/apps/intel13/mvapich2/1.9
+INSTITUTION-NICKNAME-MPIVSN:fsu-hpc-2:MPICH_DIR=/opt/hpc/intel/mvapich2
+NICKNAME-MPIVSN:atlas-1:MPICH_DIR=/share/apps/mpich1/pgi
+NICKNAME-MPIVSN:atlas-2:MPICH_DIR=/share/apps/mpich2/pgi
+NICKNAME-MPIVSN:atlas-openmpi:MPICH_DIR=/share/apps/openmpi-1.3.3/pgi
+NICKNAME:compas:MPICH_DIR=/opt/mpich/myrinet/pgi
+NICKNAME-MPIVSN:compas-openmpi:MPICH_DIR=/share/apps/openmpi-1.2.6/pgi
+MACHINE:mac|macpro:MPICH_DIR=/usr/local/lam
+MACHINE@INSTITUTION:origin@tacc:MPICH_DIR=/opt/apps/intel10_1/openmp/1.3
+#
+#  15.  FORECAST SERIAL MODEL FORT_FLAGS
+#
+MODEL_SINGLE_FORT_FLAGS=$MODELSUP_FORT_FLAGS
+MACHINE-MARCH:compas-single:MODEL_SINGLE_FORT_FLAGS="-r8 -O2 -Mrecursive -Mdalign -DLINUX -byteswapio"
+MACHINE-MARCH:compas-thread|tacc-thread:MODEL_SINGLE_FORT_FLAGS="-r8 -O2 -Mrecursive -Mdalign -DLINUX -byteswapio -mp"
+MACHINE-COMPILER-NICKNAME:linux-pgi-atlas:MODEL_SINGLE_FORT_FLAGS="-r8 -O2 -Mrecursive -Mdalign -DLINUX -Msave -byteswapio -mcmodel=medium"
+MACHINE-COMPILER-NICKNAME:linux-pgi-compas:MODEL_SINGLE_FORT_FLAGS="-r8 -O2 -Mrecursive -Mdalign -DLINUX -Msave -byteswapio"
+COMPILER:intel:MODEL_SINGLE_FORT_FLAGS="-r8 -O2 -convert big_endian -shared-intel -mcmodel=medium"
+MACHINE-MARCH:ibmsp-single:MODEL_SINGLE_FORT_FLAGS="-O3 -qMARCH=auto -qstrict -qfixed -qrealsize=8 -qnosave -qmaxmem=-1"
+MACHINE-MARCH:ibmsp-thread:MODEL_SINGLE_FORT_FLAGS="-Q -O3 -qstrict -qMARCH=auto -qrealsize=8 -qxlf77=leadzero -qnosave -qmaxmem=-1 -qsmp=noauto"
+MACHINE-MARCH:dec-single:MODEL_SINGLE_FORT_FLAGS="-r8 -i8 -O4 -fpe1 -fast"
+MACHINE-MARCH:dec-thread:MODEL_SINGLE_FORT_FLAGS="-r8 -i8 -O5 -inline speed -Olimit 5000 -fpe1 -omp"
+MACHINE:nec|sx6:MODEL_SINGLE_FORT_FLAGS='-Cvopt -R2 -Wf "-L source -pvctl fullmsg vwork=stack noassume" -ftrace -f3 -float0 -ew -llapack_64 -lblas_64 -lfft_64 -sx6 -I./MODS'
+MACHINE:hp:MODEL_SINGLE_FORT_FLAGS="-R8 +O3"
+MACHINE:tacc:MODEL_SINGLE_FORT_FLAGS="-r8 -O2 -Mrecursive -Mdalign -DLINUX -byteswapio"
+COMPILER:macpro:MODEL_SINGLE_FORT_FLAGS="-O -N113 -N11 -YEXT_NAMES=LCS -YEXT_SFX=_ "
+MACHINE:mac:MODEL_SINGLE_FORT_FLAGS="-O3 -Q -qfixed -qrealsize=8 -qsave -qstrict -qextname"
+MACHINE-MARCH:origin-single:MODEL_SINGLE_FORT_FLAGS="-O2 -r8 "
+MACHINE-MARCH:origin-thread:MODEL_SINGLE_FORT_FLAGS="-O2 -r8 -mp"
+MACHINE:sun:MODEL_SINGLE_FORT_FLAGS="-xtypemap=real:64 h0llO4 -cg89"
+MACHINE-MARCH:es-single:MODEL_SINGLE_FORT_FLAGS='-Cvopt -R2 -float0 -f3 -ew -I./MODS -lasl64 -P stack -pi -Wf"-M nozdiv noflovf noinv -L source -pvctl fullmsg vwork=stack noassume loopcnt=10000000"'
+MACHINE-MARCH:es-thread:MODEL_SINGLE_FORT_FLAGS="-Cvopt -f3 -float0 -ew -llapack_64 -I./MODS -Pauto"
+DEBUG:yes:MODEL_SINGLE_FORT_FLAGS="-g -C"
+#
+#  16.  FORECAST MPI MODEL FORT_FLAGS
+#
+MODEL_MPI_FORT_FLAGS="-O2"
+COMPILER:intel:MODEL_MPI_FORT_FLAGS="-r8 -O2 -convert big_endian -I${MPICH_DIR}/include"
+MACHINE-COMPILER:linux-pgi:MODEL_MPI_FORT_FLAGS="-r8 -O2 -Mrecursive -Mdalign -DLINUX -Mbyteswapio -Mextend -I${MPICH_DIR}/include"
+MACHINE:tacc:MODEL_MPI_FORT_FLAGS="-r8 -O2 -Mrecursive -Mdalign -DLINUX -Mbyteswapio -I/opt/MPI/pgi/mpich-gm/1.2.5..12a/include"
+MACHINE-MARCH:ibmsp-mpi:MODEL_MPI_FORT_FLAGS="-O3 -qMARCH=auto -qstrict -qfixed=132 -qrealsize=8 -qnosave -qmaxmem=-1"
+MACHINE-MARCH:ibmsp-hybrid:MODEL_MPI_FORT_FLAGS="-Q -O3 -qstrict -qMARCH=auto -qrealsize=8 -qxlf77=leadzero -qnosave -qmaxmem=-1 -qsmp=noauto"
+MACHINE:mac:MODEL_MPI_FORT_FLAGS="-O3 -Q -qfixed -qrealsize=8 -qsave -qstrict -qextname"
+COMPILER:macpro:MODEL_MPI_FORT_FLAGS="-O -N113 -N11 -YEXT_NAMES=LCS -YEXT_SFX=_ "
+MACHINE-MARCH:origin-hybrid:MODEL_MPI_FORT_FLAGS="-O2 -r8 -mp"
+MACHINE-MARCH:origin-mpi|sgi-mpi:MODEL_MPI_FORT_FLAGS="-O2 -r8 "
+MACHINE:dec:MODEL_MPI_FORT_FLAGS="-i4 -r8 -O2 -fpe1 -lfmpi"
+MACHINE:hp:MODEL_MPI_FORT_FLAGS="-R8 +O3"
+MACHINE:nec|sx6:MODEL_MPI_FORT_FLAGS='-Cvopt -R2 -Wf "-L source -pvctl fullmsg vwork=stack noassume" -ftrace -f3 -float0 -ew -llapack_64 -lblas_64 -lfft_64 -sx6 -I./MODS'
+MACHINE-MARCH:es-mpi:MODEL_MPI_FORT_FLAGS='-Cvopt -R2 -float0 -f3 -ew -I./MODS -lasl64 -P stack -pi -Wf"-M nozdiv noflovf noinv -L source -pvctl fullmsg vwork=stack noassume loopcnt=10000000"'
+MACHINE-MARCH:es-hybrid:MODEL_MPI_FORT_FLAGS="-Cvopt -P auto -f3 -float0 -ew -llapack_64 -I./MODS"
+DEBUG:yes:MODEL_SINGLE_FORT_FLAGS="-g -C"
+#
+# 17.  MODEL SERIAL LOAD FLAGS
+#
+MODEL_SINGLE_LOAD_FLAGS=$MODEL_SINGLE_FORT_FLAGS
+MACHINE:macpro:MODEL_SINGLE_LOAD_FLAGS="-O -N113 -YEXT_NAMES=LCS -YEXT_SFX=_ -lU77"
+#
+# 18.  MODEL MPI LOAD FLAGS
+#
+MODEL_MPI_LOAD_FLAGS=$MODEL_MPI_LOAD_FLAGS
+MACHINE:ibmsp:MODEL_MPI_LOAD_FLAGMPI_LOAD_FLAGS="-O3 -qarch=auto -qstrict -qrealsize=8 -qnosave -qmaxmem=-1 -L/usr/local/apps/mass"
+COMPILER:intel:MODEL_MPI_LOAD_FLAGS="-r8 -O2 -convert big_endian -L/opt/gm/lib"
+MACHINE:compas:MODEL_MPI_LOAD_FLAGS="-r8 -O2 -Mrecursive -Mdalign -DLINUX -Mbyteswapio -L/opt/gm/lib"
+MACHINE:tacc:MODEL_MPI_LOAD_FLAGS="-r8 -O2 -Mrecursive -Mdalign -DLINUX -Mbyteswapio -L/opt/gm/lib"
+MACHINE:macpro:MODEL_MPI_LOAD_FLAGS="-O -N113 -YEXT_NAMES=LCS -YEXT_SFX=_ -lU77"
+#
+#  19.  ROMS supplemental fort flags
+#
+ROMSSUP_FORT_FLAGS=
+NICKNAME-MARCH:stampede-single|stampede-mpi:ROMSSUP_FORT_FLAGS="-O2"
+NICKNAME-MARCH:atlas-single|atlas-mpi:ROMSSUP_FORT_FLAGS="-O3 -tp penryn-64"
+NICKNAME-MARCH:atlas-thread|atlas-hybrid:ROMSSUP_FORT_FLAGS="-mp -O3 -tp penryn-64"
+MACHINE-BIT64:ibmsp-no:ROMSSUP_FORT_FLAGS="-qsuffix=f=f90 -qmaxmem=-1 -qarch=pwr4 -qtune=pwr4"
+MACHINE-BIT64:ibmsp-yes:ROMSSUP_FORT_FLAGS="-qsuffix=f=f90 -q64 -qmaxmem=-1 -qarch=pwr4 -qtune=pwr4"
+DEBUG:yes:ROMSSUP_FORT_FLAGS="-g -C"
+#
+#  20.  ROMSSUP load flags
+#
+ROMSSUP_LOAD_FLAGS=
+MACHINE-COMPILER:linux-intel:ROMSSUP_LOAD_FLAGS="-Vaxlib"
+MACHINE-BIT64:ibmsp-yes:ROMSSUP_LOAD_FLAGS="-bmaxdata:0x200000000"
+MACHINE-BIT64:ibmsp-no:ROMSSUP_LOAD_FLAGS="-bmaxdata:0x70000000"
+#
+#  21.  ROMS fort flags
+#
+ROMS_FORT_FLAGS=
+MACHINE-COMPILER-MARCH:linux-intel-single:ROMS_FORT_FLAGS="-ip -O2"
+NICKNAME-MARCH:atlas-single:ROMS_FORT_FLAGS="-O3 -tp penryn-64"
+NICKNAME-MARCH:atlas-thread:ROMS_FORT_FLAGS="-O3 -tp penryn-64 -mp"
+NICKNAME-MARCH:atlas-mpi:ROMS_FORT_FLAGS="-O3 -tp penryn-64"
+NICKNAME-MARCH:stampede-single:ROMS_FORT_FLAGS="-O2"
+NICKNAME-MARCH:stampded-mpi:ROMS_FORT_FLAGS="-O2"
+MACHINE-BIT64:ibmsp-no:ROMS_FORT_FLAGS="-qsuffix=f=f90 -qmaxmem=-1 -qarch=pwr4 -qtune=pwr4"
+MACHINE-BIT64:ibmsp-yes:ROMS_FORT_FLAGS="-qsuffix=f=f90 -q64 -qmaxmem=-1 -qarch=pwr4 -qtune=pwr4"
+MACHINE-COMPILER:linux-intel:ROMS_FORT_FLAGS="-ip -O2"
+DEBUG:yes:ROMS_FORT_FLAGS="-g -C"
+#
+#  22.  ROMS load flags
+#
+ROMS_LOAD_FLAGS=
+MACHINE-BIT64:ibmsp-yes:ROMS_LOAD_FLAGS="-bmaxdata:0x200000000"
+MACHINE-BIT64:ibmsp-no:ROMS_LOAD_FLAGS="-bmaxdata:0x70000000"
+MACHINE-COMPILER:linux-intel:ROMS_LOAD_FLAGS="-Vazlib"
+#
+#  23. UTILITY FORT FLAGS
+#
+UTIL_FORT_FLAGS=$MODELSUP_FORT_FLAGS
+#
+#  24.  UTILITY LOAD FLAGS
+#
+UTIL_LOAD_FLAGS=$MODELSUP_LOAD_FLAGS
+#
+#  25. MODELIB FORT FLAGS
+#
+MODELIB_FORT_FLAGS=$MODELSUP_FORT_FLAGS
+#
+#  26.  MODELIBj LOAD FLAGS
+#
+MODELIB_LOAD_FLAGS=$MODELSUP_LOAD_FLAGS
+#
+#  27.  W3LIB_FORT_FLAGS   
+#
+W3LIB_FORT_FLAGS=
+MACHINE:compas2:W3LIB_FORT_FLAGS="-Mrecursive -Mdalign -DLINUX -byteswapio -Msecond_underscore"
+MACHINE:dec:W3LIB_FORT_FLAGS="-fpe2"
+MACHINE-MARCH:es-single:W3LIB_FORT_FLAGS='-Cvopt -ftrace -R2 -Wf"-L source -pvctl fullmsg vwork=stack noassume" -f3 -ew'
+MACHINE-MARCH:es-thread:W3LIB_FORT_FLAGS="-f3 -ew -Pauto"
+MACHINE:ibmsp:W3LIB_FORT_FLAGS="-O3 -qarch=auto -qstrict -qfixed"
+COMPILER:intel:W3LIB_FORT_FLAGS="-O2 -shared-intel -mcmodel=medium"
+MACHINE-COMPILER-NICKNAME:linux-pgi-atlas:W3LIB_FORT_FLAGS="-Mrecursive -Mdalign -DLINUX -byteswapio -Msecond_underscore -mcmodel=medium"
+MACHINE-COMPILER-NICKNAME:linux-pgi-compas:W3LIB_FORT_FLAGS="-Mrecursive -Mdalign -DLINUX -byteswapio -Msecond_underscore"
+MACHINE-MARCH-COMPILER-NICKNAME:linux-single-pgi-atlas:W3LIB_FORT_FLAGS="-Mrecursive -Mdalign -DLINUX -byteswapio -mcmodel=medium"
+MACHINE-MARCH-COMPILER-NICKNAME:linux-single-pgi-compas:W3LIB_FORT_FLAGS="-Mrecursive -Mdalign -DLINUX -byteswapio"
+MACHINE-MARCH-COMPILER:linux-thread-pgi:W3LIB_FORT_FLAGS="-mp -Mrecursive -Mdalign -DLINUX -byteswapio"
+MACHINE:mac:W3LIB_FORT_FLAGS="-O3 -Q -qfixed -qsave -qstrict -qextname"
+MACHINE:macpro:W3LIB_FORT_FLAGS="-O -YEXT_NAMES=LCS -YEXT_SFX=_"
+MACHINE:nec:W3LIB_FORT_FLAGS='-Cvopt -R2 -Wf"-L source -pvctl fullmsg vwo  rk=stack noassume" -ftrace -f3 -ew'
+MACHINE:origin|sgi|t3e:W3LIB_FORT_FLAGS="-O2"
+MACHINE:sun:W3LIB_FORT_FLAGS=
+MACHINE:sx6:W3LIB_FORT_FLAGS='-Cvopt -R2 -Wf"-L source -pvctl fullmsg vwork=stack noassume" -ftrace -f3 -ew'
+MACHINE-MARCH:t90-single:W3LIB_FORT_FLAGS="-O2"
+MACHINE-MARCH:t90-thread:W3LIB_FORT_FLAGS="-O2"options-compas2-mpi:W3LIB_FORT_FLAGS="-Mrecursive -Mdalign -DLINUX -byteswapio -Msecond_underscore"
+MACHINE-LINUXVSN:linux-7.2:W3LIB_FORT_FLAGS="-mp -Mrecursive -Mdalign -DLINUX -byteswapio"
+#
+# 28.  W3LIB LOAD FLAGS 
+#
+W3LIB_LOAD_FLAGS=$W3LIB_FORT_FLAGS
+MACHINE-COMPILER:linux-pgi:W3LIB_LOAD_FLAGS="-lpgmp -lpthread -Mrecursive -Mdalign -DLINUX -byteswapio"
+MACHINE-COMPILER:linux-intel:W3LIB_LOAD_FLAGS="-O2"
+MACHINE:macpro:W3LIB_LOAD_FLAGS="-O -YEXT_NAMES=LCS -YEXT_SFX=_ -lU77"
+MACHINE-LINUXVSN:linux-7.2:W3LIB_LOAD_FLAGS="-lpgmp -lpthread -Mrecursive -Mdalign -DLINUX -byteswapio"
+DEBUG:yes:W3LIB_FORT_FLAGS="-g -C"
+#
+# 29.  BFLIB_FORT_FLAGS
+#
+BFLIB_FORT_FLAGS=
+MACHINE:compas2:BFLIB_FORT_FLAGS="-Mrecursive -Mdalign -DLINUX -byteswapio -Msecond_underscore"
+MACHINE:dec:BFLIB_FORT_FLAGS="-r8 -i8 -fpe2"
+MACHINE:ibmsp:BFLIB_FORT_FLAGS="-O3 -qarch=auto -qstrict -qfixed"
+MACHINE-COMPILER:linux-intel:BFLIB_FORT_FLAGS=""
+MACHINE:linux:BFLIB_FORT_FLAGS="-r8"
+MACHINE:macpro|mac:BFLIB_FORT_FLAGS="-O"
+MACHINE:origin|sgi|t3e|t90:BFLIB_FORT_FLAGS="-O2"
+MACHINE-LINUXVSN:linux-7.2:BFLIB_FORT_FLAGS="-mp -Mrecursive -Mdalign -DLINUX -byteswapio"
+DEBUG:yes:BFLIB_FORT_FLAGS="-g -C"
+#
+# 30.  BFLIB LOAD FLAGS 
+#
+BFLIB_LOAD_FLAGS=$BFLIB_FORT_FLAGS
+MACHINE-COMPILER:linux-pgi:BFLIB_LOAD_FLAGS="-lpgmp -lpthread -Mrecursive -Mdalign -DLINUX -byteswapio"
+MACHINE-COMPILER:linux-intel:BFLIB_LOAD_FLAGS=""
+MACHINE-MARCH-LINUXVSN:linux-thread-7.2:BFLIB_LOAD_FLAGS="-lpgmp -lpthread -Mrecursive -Mdalign -DLINUX -byteswapio"
+#
+#  31.  SCNVRT FORT and LOAD FLAGS
+#
+SCNVRT_FORT_FLAGS=$MODELSUP_FORT_FLAGS
+SCNVRT_LOAD_FLAGS=$MODELSUP_LOAD_FLAGS
+#
+#  32.  model supplemental programs additional libraries
+#
+MODELSUP_EXTRA_LIBS=
+MACHINE:es:MODELSUP_EXTRA_LIBS="-lasl64"
+MACHINE@INSTITUTION:ibmsp@ncar:MODELSUP_EXTRA_LIBS="-lessl"
+MACHINE:nec|sx6:MODELSUP_EXTRA_LIBS="-lfft_64 -lblas_64"
+#
+#  33.  model serial programs additional libraries
+#
+MODEL_SINGLE_EXTRA_LIBS=
+MACHINE-MARCH:es-thread:MODEL_SINGLE_EXTRA_LIBS="-lfft_64 -lblas_64"
+MACHINE-MARCH:es-single:MODEL_SINGLE_EXTRA_LIBS="-lasl64"
+MACHINE@INSTITUTION:ibmsp@ncar:MODEL_SINGLE_EXTRA_LIBS='-lessl -lmass -lmassv'
+MACHINE:nec:MODEL_SINGLE_EXTRA_LIBS="-lfft_64 -lblas_64"
+MACHINE:sx6:MODEL_SINGLE_EXTRA_LIBS="-lfft_64 -lblas_64"
+#
+#  34.  model mpi programs additional libraries
+#
+MODEL_MPI_EXTRA_LIBS=
+MACHINE-MARCH:es-hybrid:MODEL_MPI_EXTRA_LIBS="-lfft_64 -lblas_64"
+MACHINE-MARCH:es-mpi:MODEL_MPI_EXTRA_LIBS="-lasl64"
+MACHINE@INSTITUTION:ibmsp@ncar:MODEL_MPI_EXTRA_LIBS='-lessl -lmass -lmassv'
+MACHINE@NICKNAME:linux@shui:MODEL_MPI_EXTRA_LIBS='-lmpi'
+MACHINE-COMPILER:linux-pgi:MODEL_MPI_EXTRA_LIBS="${MPICH_DIR}/lib/libmpich.a -lpthread"
+MACHINE-COMPILER:linux-intel:MODEL_MPI_EXTRA_LIBS=
+MACHINE-MPIVSN:linux-openmpi:MODEL_MPI_EXTRA_LIBS="${MPICH_DIR}/lib/libmpi.so -lpthread"
+MACHINE:nec:MODEL_MPI_EXTRA_LIBS="-lfft_64 -lblas_64"
+MACHINE:origin:MODEL_MPI_EXTRA_LIBS='-lmpi'
+MACHINE:sx6:MODEL_MPI_EXTRA_LIBS="-lfft_64 -lblas_64"
+MACHINE:t3e:MODEL_MPI_EXTRA_LIBS='-lmpi'
+#
+#  35.  ROMSSUP libraries
+#
+ROMSSUP_EXTRA_LIBS="-L\$(NETCDF_LIBDIR) -lnetcdf"
+NICKNAME-NETCDFVSN:atlas-3:ROMSSUP_EXTRA_LIBS="-L\$(NETCDF_LIBDIR) -lnetcdf"
+NICKNAME-NETCDFVSN:atlas-4:ROMSSUP_EXTRA_LIBS="-L\$(HDF5_LIBDIR) -lhdf5_hl -lhdf5 -lz"
+#
+#  36.  ROMS libraries
+#
+ROMS_EXTRA_LIBS="-L\$(NETCDF_LIBDIR) -lnetcdf"
+NETCDFVSN:3:ROMS_EXTRA_LIBS="-L\$(NETCDF_LIBDIR) -lnetcdf"
+NETCDFVSN:4:ROMS_EXTRA_LIBS="-L\$(HDF5_LIBDIR) -lhdf5_hl -lhdf5 -lz"
+NICKNAME-MARCH:atlas-mpi|compas-mpi:ROMS_EXTRA_LIBS="-L\$(NETCDF_LIBDIR) -lnetcdf"
+NICKNAME-MARCH:nompi90-mpi:ROMS_EXTRA_LIBS="-L\$(NETCDF_LIBDIR) -lnetcdf -Bdynamic -lfmpi-pgi -lmpi-pgi -Bstatic"
+#
+#  37.  Include dir
+#
+INCLUDE_DIR="-I../.. -I../include"
+MACHINE-MARCH:linux-mpi|linux-hybrid:INCLUDE_DIR="-I../.. -I../include -I$MPICH_DIR/include"
+#
+#  38.  other include directories
+#
+UTIL_INCLUDE_DIR="-I.. -I../.."
+UTILS_INCLUDE_DIR="-I.. -I../.."
+BFLIB_INCLUDE_DIR="-I.. -I../.."
+W3LIB_INCLUDE_DIR="-I.. -I../.."
+MODELIB_INCLUDE_DIR="-I.. -I../.."
+MODESUP_INCLUDE_DIR="-I.. -I../.."
+#
+#  39.  FFT99M object code
+#
+FFT99M=
+MACHINE:compas2|dec|hp|ibmsp|linux|mac|macpro|origin|sgi|sun:FFT99M=fft99m.o
+COMPILER:intel:FFT99M=fft99m.o
+#
+#  40.  batch job submit command
+#
+MPISUBMIT=
+MACHINE:dec|es:MPISUBMIT=qsub
+MACHINE@INSTITUTION:ibmsp@ncar:MPISUBMIT=bsub
+COMPILER:intel:MPISUBMIT=qsub
+MACHINE:compas:MPISUBMIT='ssh -f compute-1-31'
+MACHINE:linux:MPISUBMIT='ssh -f compute-1-31'
+MACHINE:tacc:MPISUBMIT='mpi-launch --nogm -m compute-1-31'
+#
+#  41.  roms MDEPFLAGS
+#
+MDEPFLAGS="--cpp --fext=f90 --file=- --objdir=\$(SCRATCH_DIR)"
+#
+#  42.  netcdf libraries
+#
+NETCDF_INCDIR=
+NICKNAME-INSTITUTION-MACHINE-NETCDFVSN:isotope2-tacc-linux-3:NETCDF_INCDIR=/home/kei/work/GRSM/RSMROMS_test2/libs/lib/netcdf/include
+NICKNAME-INSTITUTION:franklin-nersc:NETCDF_INCDIR=/opt/cray/netcdf/4.0.1.1/netcdf-pgi/include
+NICKNAME-INSTITUTION-MACHINE-NETCDFVSN:rokka-sio-linux-3:NETCDF_INCDIR=/rokka3/kana/model/Maui/libs/lib/netcdf/include
+NICKNAME-NETCDFVSN:compas-3:NETCDF_INCDIR=/share/apps/netcdf_pgi/include
+MACHINE-NETCDFVSN:linux-4:NETCDF_INCDIR=/opt/pgisoft/netcdf4/include
+MACHINE-NETCDFVSN:linux-3:NETCDF_INCDIR=/state/partition1/apps/netcdf/pgi/include
+MACHINE-NETCDFVSN-BIT64:ibmsp-4-no:NETCDF_INCDIR=/usr/local/netcdf4/include
+MACHINE-NETCDFVSN-BIT64:ibmsp-4-yes:NETCDF_INCDIR=/usr/local/pkg/netcdf4/include
+MACHINE-NETCDFVSN-BIT64:ibmsp-3-no:NETCDF_INCDIR=/usr/local/include
+MACHINE-NETCDFVSN-BIT64:ibmsp-3-yes:NETCDF_INCDIR=/usr/local/pkg/netcdf/netcdf-3.5.0_64/include
+NICKNAME-NETCDFVSN:stampede-3:NETCDF_INCDIR=/opt/apps/intel13/netcdf/3.6.3/x86_64/include
+NICKNAME-NETCDFVSN:shui-3:NETCDF_INCDIR=/usr/local/netcdf-3.6.0-p1/include
+#
+NETCDF_LIBDIR=
+NICKNAME-INSTITUTION-MACHINE-NETCDFVSN:isotope2-tacc-linux-3:NETCDF_LIBDIR=/home/kei/work/GRSM/RSMROMS_test2/libs/lib/netcdf/lib
+NICKNAME-INSTITUTION:franklin-nersc:NETCDF_LIBDIR=/opt/cray/netcdf/4.0.1.1/netcdf-pgi/lib
+NICKNAME-INSTITUTION-MACHINE-NETCDFVSN:rokka-sio-linux-3:NETCDF_LIBDIR=/rokka3/kana/model/Maui/libs/lib/netcdf/lib
+NICKNAME-NETCDFVSN:compas-3:NETCDF_LIBDIR=/share/apps/netcdf_pgi/lib
+NICKNAME-NETCDFVSN:atlas-4:NETCDF_LIBDIR=/opt/pgisoft/netcdf4/lib
+NICKNAME-NETCDFVSN:atlas-3:NETCDF_LIBDIR=/state/partition1/apps/netcdf/pgi/lib
+MACHINE-NETCDFVSN-BIT64:ibmsp-4-no:NETCDR_LIBDIR=/usr/local/netcdf4/lib
+MACHINE-NETCDFVSN-BIT64:ibmsp-4-yes:NETCDR_LIBDIR=/usr/local/pkg/netcdf4/lib
+MACHINE-NETCDFVSN-BIT64:ibmsp-3-no:NETCDF_LIBDIR=/usr/local/lib
+MACHINE-NETCDFVSN-BIT64:ibmsp-3-yes:NETCDF_LIBDIR=/usr/local/pkg/netcdf/netcdf-3.5.0_64/lib
+NICKNAME-NETCDFVSN:stampede-3:NETCDF_LIBDIR=/opt/apps/intel13/netcdf/3.6.3/x86_64/lib
+NICKNAME-NETCDFVSN:shui-3:NETCDF_LIBDIR=/usr/local/netcdf-3.6.0-p1/lib
+#
+HDF5_LIBDIR=
+MACHINE-BIT64:ibmsp-no:HDF5_LIBDIR=/usr/local/hdf5/lib
+MACHINE-BIT64:ibmsp-yes:HDF5_LIBDIR=
+NICKNAME-NETCDFVSN:atlas-4:HDF5_LIBDIR=/opt/pgisoft/hdf5/lib
+#
+#  43.  number of cpu per nopde
+#
+NCPU_PER_NODE=1
+NICKNAME:atlas:NCPU_PER_NODE=8
+NICKNAME:compas:NCPU_PER_NODE=2
+NICKNAME:stampede:NCPU_PER_NODE=16
+#
+#  44.  mpi run/exec
+#
+MPIEXEC=mpirun
+NICKNAME:isotope2:MPIEXEC=mpirun
+NICKNAME:isotope3:MPIEXEC=mpirun
+NICKNAME:creed:MPIEXEC=mpirun
+NICKNAME:roses:MPIEXEC=mpirun
+NICKNAME:guns:MPIEXEC=mpirun
+NICKNAME:compas:MPIEXEC=/opt/mpich/myrinet/pgi/bin/mpirun
+NICKNAME-MPIVSN:compas-openmpi:MPIEXEC=/share/apps/openmpi-1.2.6/pgi/bin/mpirun
+NICKNAME-MPIVSN:atlas-1:MPIEXEC=/share/apps/mpich1/pgi/bin/mpirun
+NICKNAME-MPIVSN:atlas-2:MPIEXEC=/share/apps/mpich2/pgi/bin/mpiexec 
+NICKNAME-MPIVSN:atlas-openmpi:MPIEXEC=/share/apps/openmpi-1.3.3/pgi/bin/mpirun
+COMPILER:intel:MPIEXEC=mpirun
+NICKNAME:naam:MPIEXEC=mpiexec
+NICKNAME:stampede:MPIEXEC=ibrun
+MACHINE:dec:MPIEXEC=prun
+INSTITUTION:tacc:MPIEXEC=pam
+INSTITUTION-MACHINE:ncar-ibmsp:MPIEXEC=mpirun.lsf
+INSTITUTION-MACHINE:nersc-linux:MPIEXEC=aprun
+# 
+#
+#
+NPES_ARG="-np"
+NICKNAME-MPIVSN:atlas-2:NPES_ARG="-n"
+NICKNAME-MPIVSN:atlas-openmp:NPES_ARG="--mca mtl mx --mca pml cm -np"
+NICKNAME-MPIVSN:compas-openmpi:NPES_ARG="-np"
+#
+#  45.  mpi run/exec args
+#
+MPIEXEC_ARGS=
+NICKNAME:naam:MPIEXEC_ARGS="dplace -s1"
+NICKNAME:isotope2:MPIEXEC_ARGS="-hostfile \$PBS_NODEFILE"
+NICKNAME:isotope3:MPIEXEC_ARGS="-hostfile \$PBS_NODEFILE"
+NICKNAME:creed:MPIEXEC_ARGS="-hostfile \$PBS_NODEFILE"
+NICKNAME:roses:MPIEXEC_ARGS="-hostfile \$PBS_NODEFILE"
+NICKNAME:guns:MPIEXEC_ARGS="-hostfile \$PBS_NODEFILE"
+NICKNAME:compas:MPIEXEC_ARGS="-nolocal  -machinefile  \${heredir}/hostfile "
+NICKNAME:dynamic:MPIEXEC_ARGS="-machinefile  \${heredir}/hostfile "
+NICKNAME-MPIVSN:atlas-1:MPIEXEC_ARGS="-nolocal -machinefile \${heredir}/hostfile"
+NICKNAME-MPIVSN:atlas-2:MPIEXEC_ARGS="-1 -l"
+NICKNAME-MPIVSN:atlas-openmpi|compas-openmpi:MPIEXEC_ARGS="--hostfile ~/nodelist"
+COMPILER-INSTITUTION:intel-tacc:MPIEXEC_ARGS=""
+#
+#  46.  mpi coupled run/exec args
+#
+MPIEXEC_ARGS_SUP=
+NICKNAME-MPIVSN:atlas-1:MPIEXEC_ARGS_SUP=
+NICKNAME-MPIVSN:atlas-2:MPIEXEC_ARGS_SUP="-n \${PROG2_NPES} \$paramfile2"
+NICKNAME-MPIVSN:atlas-openmpi|compas-openmpi:MPIEXEC_ARGS_SUP="-np \${PROG2_NPES} \$paramfile2"
+#
+#  47.  mpi additional coupled run/exec args
+#
+MPIEXEC_ARGS_SUP2=
+NICKNAME-MPIVSN:atlas-1:MPIEXEC_ARGS_SUP2=
+NICKNAME-MPIVSN:atlas-2:MPIEXEC_ARGS_SUP2="-n \${PROG3_NPES} \$paramfile3"
+NICKNAME-MPIVSN:atlas-openmpi|compas-openmpi:MPIEXEC_ARGS_SUP2="-np \${PROG3_NPES} \$paramfile3"
+#
+#      option of execution before mpiexec/mpirun 1
+#
+PRE_MPIEXEC_1=
+NICKNAME-MPIVSN:atlas-2:PRE_MPIEXEC_1="mpdboot -n \$n -f \$here_dir/hostfile"
+#
+#      option of execution before mpiexec/mpirun 2
+#
+PRE_MPIEXEC_2=
+#
+#  48.  mpi additional coupled run/exec args
+#
+NODE_LIST=\$HOME/node_list
+#
+#  49  Time Limit
+#
+TIME_LIMIT=
+#
+#  50.  Memory limit
+#
+MEMORY_LIMIT=
+#
+#  51.  CLASS
+#
+CLASS=
+#
+#  52. COMR4  communication word length
+#
+COMR4=true
+#
+#  53.  USERNAME
+#
+USERNAME=
+#
+#  54.  EXTRA_LIBS
+#
+EXTRA_LIBS=
+MACHINE@NICKNAME:linux@naam:EXTRA_LIBS='-lmpi'
+#
+#  55.  not used
+#
+#
+#  56.  Notify mail address
+#
+NOTIFY_MAIL=
+#
+#  57.  Project serial number
+#
+PROJECT_SERIAL_NUMBER=SI0250
+#
+#  58.  MTNSUBMIT  submssion method of mtn program
+#
+MTNSUBMIT=
+#
+#  59.  wgrib
+#
+WGRIB=wgrib
+#
+#  do not delete the next line
+#==================================================================================
+#
+#  batch job header files for parallel programs
+#
+HEADER=<<EOF
+#!/bin/sh
+#
+#  no header file.  Interactive submssion only
+#
+EOF
+
+MACHINE-MARCH:mac-mpi|mac-hybrid:HEADER=<<EOF
+#!/bin/sh
+#
+ lamboot -v $HOME/lamhosts
+#
+EOF
+
+INSTITUTION-MACHINE-MARCH:arsc-nec-mpi|arsc-nec-hybrid:HEADER=<<EOF
+#!/bin/sh
+#@$-q batch               # Submit to pipe queue "batch"
+#@$-lM @MEMORY_LIMIT@     # Request 1000MW memory
+#@$-lT @TIME_LIMIT@       # Request 2 1/2 hours CPU time
+#@$-mb -me                # Send mail at start and end of execution
+#@$-eo                    # Direct output from stderr to the stdout file
+#@$-c @NPES@
+#@$                       # REQUIRED! End of NQS options
+# Shell script begins here.
+ cd $QSUB_WORKDIR         # cd back to the directory from
+ setenv F_PROGINF DETAIL  # request performance information
+ setenv F_TRACE YES
+ setenv F_FILEINF YES
+EOF
+INSTITUTION-MACHINE-MARCH:arsc-nec-single|arsc-nec-thread:HEADER=<<EOF
+#!/bin/sh
+#@$-q batch     # Submit to pipe queue "batch"
+#@$-lM 15GB     # Request 1000MW memory
+#@$-lT 15:30:00  # Request 2 1/2 hours CPU time
+#@$-mb -me      # Send mail at beginning and end of request execution
+#@$-eo          # Direct output from stderr to the stdout file
+#@$-c 1
+#@$             # REQUIRED! This line indicates the end of NQS options
+
+# Shell script begins here.
+
+ cd $QSUB_WORKDIR         # cd back to the directory from
+                         #   which the script was submitted
+# make rsm               # make the program
+ setenv F_PROGINF DETAIL  # request performance information
+ setenv F_TRACE YES
+ setenv F_FILEINF YES
+EOF
+
+
+INSTITUTION-MACHINE-MARCH:esc-es-mpi|esc-es-hybrid:HEADER=<<EOF
+#!/bin/sh
+#
+#PBS -q L
+#PBS -b @NNODES@
+#PBS -l elapstim_req=@TIME_LIMIT@
+#PBS -l filecap_job=@MEMORY_LIMIT@
+#PBS -m e
+#PBS -o mpds:@RUNS_DIR@/stdout.%j
+#PBS -e mpds:@RUNS_DIR@/stderr.%j
+#PBS -v F_SETBUF06=0
+#PBS -v F_SETBUF00=0
+#PBS -v F_PROGINF=DETAIL
+#PBS -v F_TRACE=YES
+#
+#insert-in-pbs
+#insert-out-pbs
+#insert-stageio
+ F_PROGINF=YES
+ F_TRACE=YES
+ export F_PROGINF F_TRACE
+EOF
+INSTITUTION-MACHINE-MARCH:esc-es-single|esc-es-thread:HEADER=<<EOF
+#!/bin/sh
+#@$-q batch     # Submit to pipe queue "batch"
+#@$-lM 15GB     # Request 1000MW memory
+#@$-lT 15:30:00  # Request 2 1/2 hours CPU time
+#@$-mb -me      # Send mail at beginning and end of request execution
+#@$-eo          # Direct output from stderr to the stdout file
+#@$-c 1
+#@$             # REQUIRED! This line indicates the end of NQS options
+
+# Shell script begins here.
+
+ cd $QSUB_WORKDIR         # cd back to the directory from
+                         #   which the script was submitted
+# make rsm               # make the program
+ setenv F_PROGINF DETAIL  # request performance information
+ setenv F_TRACE YES
+ setenv F_FILEINF YES
+EOF
+
+
+INSTITUTION-MACHINE-MARCH:lemiux-dec-mpi|lemiux-dec-hybrid:HEADER=<<EOF
+#!/bin/sh
+#PBS -l walltime=@TIME_LIMIT@
+#PBS -l rmsnodes=@NNODES@:@NPES@
+#PBS -j oe
+#
+ set -a
+ for envvar in `env | grep PBS | cut -d'=' -f1`
+ do
+         export $envvar
+ done
+ export RSM_NODES
+ export RSM_PROCS
+ ulimit -d $datasize
+ ulimit -s $stacksize
+EOF
+INSTITUTION-MACHINE-MARCH:lemieux-dec-single|lemieux-dec-single:HEADER=<<EOF
+#!/bin/sh
+#PBS -l walltime=4:00:00
+#PBS -l rmsnodes=1:1
+#PBS -j oe
+#
+ set -ax
+ for envvar in `env | grep PBS | cut -d'=' -f1`
+ do
+        export $envvar
+ done
+ export RSM_NODES
+ export RSM_PROCS
+EOF
+
+
+INSTITUTION-MACHINE-MARCH:navo-origin-mpi|navo-origin-hybrid:HEADER=<<EOF
+#!/bin/ksh
+#$ -cwd -S /bin/sh -j y
+#$ -q parallel -pe mpi @NPES@
+#$ -N out
+#$ -l h_vmem=1024M
+#
+ limit cputime unlimited
+#
+ . /usr/local/codine/codine_settings.sh
+ . /opt/modules/modules/init/sh
+ module load MIPSpro mpt
+#
+EOF
+INSTITUTION-MACHINE-MARCH:navo-origin-single|navo-origin-thread:HEADER=<<EOF
+#!/bin/ksh
+#$ -cwd -S /bin/sh -j y
+#$ -q serial
+#$ -N out
+#$ -l h_vmem=1024M
+#
+ limit cputime unlimited
+#
+EOF
+
+
+INSTITUTION-MACHINE-NICKNAME-MARCH:ncar-ibmsp-bluelight-mpi|ncar-ibmsp-bluelight-hybrid:HEADER=<<EOF
+#!/bin/ksh
+#
+# LSF batch script to run an MPI application
+#
+#BSUB -x                               # exlusive use of node (not_shared)
+#BSUB -n @NPES@                        # number of tasks
+#BSUB -a poe                           # select the poe elim
+#BSUB -P 93300105                      # Project serial number
+#BSUB -R "span[ptile=@NCPU_PER_NODE@]" # run 1 task per node
+#BSUB -J mpilsf.test                   # job name
+#BSUB -o mpilsf.%J.out                 # output filename
+#BSUB -e mpilsf.%J.err                 # error filename 
+#BSUB -W @TIME_LIMIT@                  # hour:min
+#BSUB -q @CLASS@                       # queue
+#
+ PARTHDS=@NCPUS@
+ XLSMPOPTS="parthds=${PARTHDS}"
+ export XLSMPOPTS
+ MP_SHARED_MEMORY=yes
+ export MP_SHARED_MEMORY
+ SPINLOOPTIME=5000
+ export SPINLOOPTIME
+ datasize=unlimited
+ stacksize=unlimited
+ ulimit -d $datasize
+ ulimit -s $stacksize
+#
+EOF
+INSTITUTION-MACHINE-NICKNAME-MARCH:ncar-ibmsp-bluelight-single|ncar-ibmsp-bluelight-hybrid:HEADER=<<EOF
+#!/bin/ksh
+#
+# LSF batch script to run the serial code example
+#
+#BSUB -n 1                                    # number of tasks
+#BSUB -P 93300105                      # Project
+#BSUB -o seriallsf.%J.out            # output filename
+#BSUB -e seriallsf.%J.err            # input filename
+#BSUB -J seriallsf.test                  # job name
+#BSUB -W 1:10	        # 10 minutes wall clock time
+#BSUB -q regular                         # queue
+#
+EOF
+
+ 
+INSTITUTION-MACHINE-NICKNAME-MARCH:ncar-ibmsp-bluesky-mpi|ncar-ibmsp-bluesky-hybrid:HEADER=<<EOF
+#!/bin/sh
+#@ output = pout.$(jobid)
+#@ error = pout.$(jobid)
+#@ job_type = parallel
+#@ total_tasks = @NPES@
+#@ node = @NNODES@
+#@ notify_user =
+#@ network.MPI=csss,not_shared,us
+#@ node_usage = not_shared
+#@ notification = always
+#@ wall_clock_limit = @TIME_LIMIT@
+#@ class = @CLASS@
+#@ queue
+ MP_INTRDELAY=100
+ export MP_INTRDELAY
+EOF
+
+ 
+INSTITUTION-MACHINE-NICKNAME-MARCH:ncar-ibmsp-bluevista-mpi|ncar-ibmsp-bluevista-hybrid:HEADER=<<EOF
+#!/bin/ksh
+#
+# LSF batch script to run an MPI application
+#
+#BSUB -x                               # exlusive use of node (not_shared)
+#BSUB -n @NPES@                        # number of tasks
+#BSUB -a poe                           # select the poe elim
+#BSUB -P 93300105                      # Project serial number
+#BSUB -R "span[ptile=@NCPU_PER_NODE@]" # run 1 task per node
+#BSUB -J mpilsf.test                   # job name
+#BSUB -o mpilsf.%J.out                 # output filename
+#BSUB -e mpilsf.%J.err                 # error filename 
+#BSUB -W @TIME_LIMIT@                  # hour:min
+#BSUB -q @CLASS@                       # queue
+ PARTHDS=@NCPUS@
+ XLSMPOPTS="parthds=${PARTHDS}"
+ export XLSMPOPTS
+ MP_SHARED_MEMORY=yes
+ export MP_SHARED_MEMORY
+ SPINLOOPTIME=5000
+ export SPINLOOPTIME
+ datasize=unlimited
+ stacksize=unlimited
+ ulimit -d $datasize
+ ulimit -s $stacksize
+ MP_STDINMODE=0
+ export MP_STDINMODE
+#
+EOF
+INSTITUTION-MACHINE-NICKNAME-MARCH:ncar-ibmsp-bluevista-single|ncar-ibmsp-bluevista-thread:HEADER=<<EOF
+#!/bin/ksh
+#
+# LSF batch script to run the serial code example
+#
+#BSUB -n 1                                    # number of tasks
+#BSUB -P 93300105                      # Project
+#BSUB -o seriallsf.%J.out            # output filename
+#BSUB -e seriallsf.%J.err            # input filename
+#BSUB -J seriallsf.test                  # job name
+#BSUB -W 1:10	        # 10 minutes wall clock time
+#BSUB -q regular                         # queue
+#
+EOF
+
+
+INSTITUTION-MACHINE-MARCH:ncar-ibmsp-mpi|ncar-ibmsp-hybrid:HEADER=<<EOF
+#!/bin/sh
+#@ output = pout.$(jobid)
+#@ error = pout.$(jobid)
+#@ job_type = parallel
+#@ total_tasks = @NPES@
+#@ node = @NNODES@
+#@ notify_user =
+#@ network.MPI=csss,not_shared,us
+#@ node_usage = not_shared
+#@ notification = always
+#@ wall_clock_limit = @TIME_LIMIT@
+#@ class = @CLASS@
+#@ queue
+ MP_INTRDELAY=100
+ export MP_INTRDELAY
+EOF
+INSTITUTION-MACHINE-MARCH:ncar-ibmsp-single|ncar-ibmsp-thread:HEADER=<<EOF
+#!/bin/sh
+#@ output = sout.$(jobid)
+#@ error = sout.$(jobid)
+#@ job_type = serial
+#@ notification = always
+#@ wall_clock_limit = 2:30:00
+#@ class = csl_ec8
+#@ queue
+EOF
+
+
+INSTITUTION-MACHINE-MARCH:ncep-ibmsp-mpi|ncep-ibmsp-hybrid:HEADER=<<EOF
+#!/bin/sh
+#
+# @ job_type = parallel
+# @ output = out.$(jobid)
+# @ error = err.$(jobid)
+# @ total_tasks = @NPES@
+# @ node = @NNODES@
+# @ preferences = Feature == "dev"
+# @ network.MPI=switch,shared,us
+# @ class = @CLASS@
+# @ wall_clock_limit = @TIME_LIMIT@
+# @ queue
+#
+ MP_SHARED_MEMORY=yes
+ export MP_SHARED_MEMORY
+ PARTHDS=@NCPUS@
+ XLSMPOPTS="parthds=${PARTHDS}"
+ export XLSMPOPTS
+ MP_SHARED_MEMORY=yes
+ export MP_SHARED_MEMORY
+ SPINLOOPTIME=5000
+ export SPINLOOPTIME
+ datasize=unlimited
+ stacksize=unlimited
+ ulimit -d $datasize
+ ulimit -s $stacksize
+#
+EOF
+INSTITUTION-MACHINE-MARCH:ncep-ibmsp-single|ncep-ibmsp-thread:HEADER=<<EOF
+#!/bin/sh
+#
+# @ job_type = serial
+# @ output = %EXECSUBDIR%/out.$(jobid)
+# @ error = %EXECSUBDIR%/out.$(jobid)
+# @ class = dev
+# @ preferences = (( Feature == "dev" ) && ( Memory > 256 ))
+# @ queue
+#
+EOF
+
+INSTITUTION-MACHINE-MARCH:ncsa-linux-mpi|ncsa-linux-hybrid:HEADER=<<EOF
+#!/bin/sh
+#PBS -q dque
+#PBS -A @PROJECT_SERIAL_NUMBER@
+#PBS -N rsm
+#PBS -l nodes=@NNODES@:ppn=@NCPU_PER_NODE@
+#PBS -l walltime=@TIME_LIMIT@
+#PBS -o file.out
+#PBS -e file.err
+#PBS -V
+#
+ for envvar in `env | grep PBS | cut -d'=' -f1`
+ do
+        export $envvar
+ done
+EOF
+INSTITUTION-MACHINE-MARCH:ncsa-linux-mpi|ncsa-linux-thread:HEADER=<<EOF
+#!/bin/sh
+#PBS -q dque
+#PBS -A @PROJECT_SERIAL_NUMBER@
+#PBS -N rsm
+#PBS -l nodes=1:ppn=1,walltime=4:00:0
+#PBS -o sfile.out
+#PBS -e sfile.err
+#PBS -V
+#
+ for envvar in `env | grep PBS | cut -d'=' -f1`
+ do
+        export $envvar
+ done
+EOF
+
+
+INSTITUTION-MACHINE-MARCH:nersc-ibmsp-mpi|nersc-ibmsp-hybrid:HEADER=<<EOF
+#!/bin/sh
+#
+#@ job_type = parallel
+#@ output = out.$(jobid)
+#@ error = err.$(jobid)
+#@ total_tasks = @NPES@
+#@ node = @NNODES@
+#@ network.MPI = sn_all,not_shared,US
+#@ class = @CLASS@
+#@ wall_clock_limit = @TIME_LIMIT@
+#@ notification = error
+#@ queue
+#
+EOF
+
+INSTITUTION-MACHINE-MARCH:nersc-linux-mpi|nersc-linux-hybrid:HEADER=<<EOF
+#!/bin/sh
+#PBS -q debug
+#PBS -A @PROJECT_SERIAL_NUMBER@
+#PBS -N gsm
+#PBS -l mppwidth=@NNODES@
+#PBS -l walltime=@TIME_LIMIT@
+#PBS -V
+#
+ for envvar in `env | grep PBS | cut -d'=' -f1`
+ do
+        export $envvar
+ done
+EOF
+INSTITUTION-MACHINE-MARCH:nersc-ibmsp-single|nersc-ibmsp-thread:HEADER=<<EOF
+#!/bin/sh
+#
+# @ job_type = serial
+# @ output = %EXECSUBDIR%/out.$(jobid)
+# @ error = %EXECSUBDIR%/out.$(jobid)
+# @ class = premium
+# @ notification = error
+# @ queue
+#
+EOF
+
+INSTITUTION-MACHINE-MARCH:purdue-ibmsp-mpi|purdue-ibmsp-hybrid:HEADER=<<EOF
+#!/bin/sh
+#PBS -q dque
+#PBS -A @PROJECT_SERIAL_NUMBER@
+#PBS -N rsm
+#PBS -l nodes=@NNODES@:ppn=@NCPU_PER_NODE@
+#PBS -l walltime=@TIME_LIMIT@
+#PBS -o file.out
+#PBS -e file.err
+#PBS -V
+#
+ for envvar in `env | grep PBS | cut -d'=' -f1`
+ do
+        export $envvar
+ done
+EOF
+
+INSTITUTION-MACHINE-MARCH:purdue-linux-mpi|purdue-linux-hybrid:HEADER=<<EOF
+#!/bin/sh
+#PBS -q dque
+#PBS -A @PROJECT_SERIAL_NUMBER@
+#PBS -N rsm
+#PBS -l nodes=@NNODES@:ppn=@NCPU_PER_NODE@
+#PBS -l walltime=@TIME_LIMIT@
+#PBS -o file.out
+#PBS -e file.err
+#PBS -V
+#
+ for envvar in `env | grep PBS | cut -d'=' -f1`
+ do
+        export $envvar
+ done
+EOF
+
+NICKNAME-MACHINE-MARCH:stampede-linux-mpi|stampede-linux-hybrid:HEADER=<<EOF
+#!/bin/bash      
+#SBATCH -J myMPI        # Job Name
+#SBATCH -o myMPI.o%j    # Output and error file name (%j expands to jobID)
+#SBATCH -n @NNODES@*16  # Total number of mpi tasks requested
+#SBATCH -p development  # Queue (partition) name -- normal, development, etc.
+#SBATCH -t 01:30:00     # Run time (hh:mm:ss) - 1.5 hours
+EOF
+
+INSTITUTION-NICKNAME-MACHINE-MARCH:fsu-hpc-linux-mpi|fsu-hpc-linux-hybrid:HEADER=<<EOF
+#!/bin/bash -v
+##MOAB -N forecast -l nodes=8:ppn=16
+##MOAB -l walltime=41:30:00
+##MOAB -m abe
+##MOAB -j oe
+EOF
+
+INSTITUTION-MACHINE-MARCH:sdsc-ibmsp-mpi|sdsc-ibmsp-hybrid:HEADER=<<EOF
+#!/bin/sh
+#@environment = COPY_ALL; MP_EUILIB=us;XLSMPOPTS=parthds=1:spins=0:
+ yields=0: schedule=static
+ AIXTHREAD_SCOPE=S
+ AIXTHREAD_MNRATIO=8:8
+ MP_SHARED_MEMORY=yes
+ MP_PULSE=0
+ RT_GRQ=ON
+ MP_CSS_INTERRUPT=yes
+ MP_INTRDELAY=100
+#@ output = out.$(jobid)
+#@ error = out.$(jobid)
+#@ job_type = parallel
+#@ total_tasks = @NPES@
+#@ node = @NNODES@
+#@ notify_user =
+#@ network.MPI = sn_all, shared, US
+#@ node_usage = not_shared
+#@ notification = always
+#@ wall_clock_limit = @TIME_LIMIT@ 
+#@ class = @CLASS@
+#@ queue
+ MP_INTRDELAY=100
+ export MP_INTRDELAY
+EOF
+INSTITUTION-MACHINE-MARCH:sdsc-ibmsp-mpi|sdsc-ibmsp-thread:HEADER=<<EOF
+#!/bin/csh
+#@environment = COPY_ALL; MP_EUILIB=us;XLSMPOPTS=parthds=1:spins=0:yields=0: schedule=static;MP_CPU_USAGE=unique; AIXTHREAD_SCOPE=S;AIXTHREAD_MNRATIO=8:8; MP_SHARED_MEMORY=yes;MP_PULSE=0;RT_GRQ=ON;MP_CSS_INTERRUPT=yes;MP_INTRDELAY=100
+#@ output = %EXECSUBDIR%/out.$(jobid)
+#@ error = %EXECSUBDIR%/out.$(jobid)
+#@ job_type = serial
+#@ node = 1
+#@ tasks_per_node = 1
+#@ notify_user = yfcui@sdsc.edu
+#@ network.MPI = css0,not_shared,US
+#@ node_usage = not_shared
+#@ notification = always
+#@ wall_clock_limit = 0:20:00
+#@ class = high
+#@ queue
+ csh
+ setenv MP_INTRDELAY 100
+EOF
+
+
+INSTITUTION-MACHINE-MARCH:sdsc-linux-mpi|sdsc-linux-hybrid:HEADER=<<EOF
+#!/bin/sh
+#PBS -q dque
+#PBS -A @PROJECT_SERIAL_NUMBER@
+#PBS -N rsm
+#PBS -l nodes=@NNODES@:ppn=@NCPU_PER_NODE@
+#PBS -l walltime=@TIME_LIMIT@
+#PBS -o file.out
+#PBS -e file.err
+#PBS -V
+#
+ for envvar in `env | grep PBS | cut -d'=' -f1`
+ do
+        export $envvar
+ done
+EOF
+
+INSTITUTION-MACHINE-MARCH:tacc-linux-mpi|tacc-linux-hybrid:HEADER=<<EOF
+#!/bin/sh
+#BSUB -J rsm
+#BSUB -o outf.o%J
+#BSUB -e errf.o%J
+#BSUB -W @TIME_LIMIT@ -n @NPES@
+#BSUB -q normal
+EOF
+INSTITUTION-MACHINE-MARCH:tacc-linux-single|tacc-linux-thread:HEADER=<<EOF
+#!/bin/sh
+#BSUB -J rsmftp
+#BSUB -o outf.o%J
+#BSUB -e errf.o%J
+#BSUB -M 1048576
+#BSUB -W @TIME_LIMIT@ -n 1
+#BSUB -q serial
+EOF
+
+
+INSTITUTION-MACHINE-MARCH:teragrid-ibmsp-mpi|teragrid-ibmsp-hybrid:HEADER=<<EOF
+#!/bin/sh
+#PBS -A @PROJECT_SERIAL_NUMBER@
+#PBS -N rsm
+#PBS -l nodes=@NNODES@:ppn=@NCPU_PER_NODE@,walltime=@TIME_LIMIT@
+#PBS -o file.out
+#PBS -e file.err
+#PBS -V
+#
+ for envvar in `env | grep PBS | cut -d'=' -f1`
+ do
+        export $envvar
+ done
+EOF
+
+INSTITUTION-MACHINE-MARCH:teragrid-linux-mpi|teragrid-linux-hybrid:HEADER=<<EOF
+#!/bin/sh
+#PBS -q dque
+#PBS -A @PROJECT_SERIAL_NUMBER@
+#PBS -N rsm
+#PBS -l nodes=@NNODES@:ppn=@NCPU_PER_NODE@
+#PBS -l walltime=@TIME_LIMIT@
+#PBS -o file.out
+#PBS -e file.err
+#PBS -V
+#
+ for envvar in `env | grep PBS | cut -d'=' -f1`
+ do
+        export $envvar
+ done
+EOF
+
+INSTITUTION-MACHINE-MARCH:texas-sx6-mpi|texas-sx6-hybrid:HEADER=<<EOF
+#@$-s /bin/sh
+#@$-q sxlg
+#@$-eo
+#@$-ro
+#@$-lM @MEMORY_LIMIT@    # Request 1000MW memory
+#@$-lT @TIME_LIMIT@      # Request 2 1/2 hours CPU time
+#@$-c 8
+#@$
+#F_SYSLEN=1024             ; export F_SYSLEN
+#F_SETBUF6=0               ; export F_SETBUF6
+#MPISUSPEND=ON             ; export MPISUSPEND
+#MPISUSPENDCOUNT=1         ; export MPISUSPENDCOUNT
+#MPIMULTITASKMIX=ON        ; export MPIMULTITASKMIX
+#OMP_NUM_THREADS=4         ; export OMP_NUM_THREADS
+#F_FF05=./namelist         ; export F_FF05
+#F_FILEINF=DETAIL          ; export F_FILEINF
+#F_FTRACE=YES              ; export F_FTRACE
+#
+ F_PROGINF=DETAIL2 
+ export F_PROGINF
+ cd $QSUB_WORKDIR          # cd back to the directory from
+#setenv F_PROGINF DETAIL  # request performance information
+#setenv F_FTRACE YES
+#setenv F_FILEINF YES
+EOF
+
+MACHINE-MARCH:cray-hybrid|t90-hybrid:HEADER=<<EOF
+#!/bin/sh
+#
+ NCPUS=@NCPUS@
+ export NCPUS
+#
+EOF
+MACHINE-MARCH:cray-thread|t90-thread:HEADER=<<EOF
+#!/bin/sh
+#
+ NCPUS=@NCPUS@
+ export NCPUS
+#
+EOF
+
+
+MACHINE-MARCH:sgi-hybrid|origin-hybrid:HEADER=<<EOF
+#!/bin/sh
+#
+ MP_SET_NUMTHREADS=@NCPUS@
+ export MP_SET_NUMTHREADS=@NCPUS@
+#
+EOF
+MACHINE-MARCH:sgi-thread|origin-thread:HEADER=<<EOF
+#!/bin/sh
+#
+ MP_SET_NUMTHREADS=@NCPUS@
+ export MP_SET_NUMTHREADS
+#
+EOF
+
+MACHINE-MARCH:dec-hybrid:HEADER=<<EOF
+#!/bin/sh
+#
+ OMP_NUM_THREADS=@NCPUS@
+ export OMP_NUM_THREADS
+ ulimit -d $datasize
+ ulimit -s $stacksize
+#
+EOF
+MACHINE-MARCH:dec-thread:HEADER=<<EOF
+#!/bin/sh
+#
+ OMP_NUM_THREADS=@NCPUS@
+ export OMP_NUM_THREADS
+ ulimit -d $datasize
+ ulimit -s $stacksize
+#
+EOF
+MACHINE:dec:HEADER=<<EOF
+#!/bin/sh
+#
+ ulimit -d $datasize
+ ulimit -s $stacksize
+#
+EOF
+NICKNAME-MARCH:isotope2-mpi:HEADER=<<EOF
+#!/bin/sh
+#PBS -l nodes=@NCPU_PER_NODE@:ppn=@NNODES@
+ cd \$PBS_O_WORKDIR
+ export LANG=C
+#
+ulimit -s unlimited
+EOF
+NICKNAME-MARCH:isotope3-mpi:HEADER=<<EOF
+#!/bin/sh
+#PBS -l nodes=@NCPU_PER_NODE@:ppn=@NNODES@
+ cd \$PBS_O_WORKDIR
+ export LANG=C
+#
+ulimit -s unlimited
+EOF
+NICKNAME-MARCH:creed-mpi:HEADER=<<EOF
+#!/bin/sh
+#PBS -l nodes=@NCPU_PER_NODE@:ppn=@NNODES@
+ cd \$PBS_O_WORKDIR
+ export LANG=C
+#
+ulimit -s unlimited
+EOF
+NICKNAME-MARCH:roses-mpi:HEADER=<<EOF
+#!/bin/sh
+#PBS -l nodes=@NCPU_PER_NODE@:ppn=@NNODES@
+ cd \$PBS_O_WORKDIR
+ export LANG=C
+#
+ulimit -s unlimited
+EOF
+NICKNAME-MARCH:guns-mpi:HEADER=<<EOF
+#!/bin/sh
+#PBS -l nodes=@NCPU_PER_NODE@:ppn=@NNODES@
+ cd \$PBS_O_WORKDIR
+ export LANG=C
+#
+ulimit -s unlimited
+EOF
+NICKNAME-MARCH:naam-mpi:HEADER=<<EOF
+#!/bin/sh
+#PBS -q q20
+#PBS -l select=@NNODES@:ncpus=@NCPU_PER_NODE@:mpiprocs=@NCPU_PER_NODE@:mem=15gb
+#PBS -N rsm
+#
+ulimit -s unlimited
+EOF
+NICKNAME-COMPILER-MARCH:ha8000-intel-mpi:HEADER=<<EOF
+#!/bin/sh
+#@$-q k05064
+#@$-N @NNODES@
+#
+EOF

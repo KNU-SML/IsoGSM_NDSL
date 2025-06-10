@@ -1,0 +1,75 @@
+EXECS = date.x ifdef.x ieee2grb_sst.x mpiset.x incdte.x \
+	inchour.x ieee2grb_sm.x ieee2grb.x rmpiset.x prmap.x \
+	sigphys.x rsigdiff.x polymask.x scnvrt.x bufrdte.x jwpl1.x msgjb.x mapinfo.x
+
+OBJS = ${EXECS:.x=.o}
+
+CEXECS = force_grib_date_mon wgrib
+COBJS = ${CEXECS:=.c}
+
+SHELL = @SHELL@
+CC = @CC@
+CPP = @CPP@
+RM = @RM@
+CD = @CD@
+CP = @CP@
+CHMOD = @CHMOD@
+
+F77 = @UTIL_F77@
+FORT_FLAGS = @UTIL_FORT_FLAGS@
+LOAD_FLAGS = @UTIL_LOAD_FLAGS@
+LIB_DIR = @LIBS_DIR@/lib
+ETC_DIR = @LIBS_DIR@/etc
+INCLUDE_DIR = @UTILS_INCLUDE_DIR@
+
+LIB = ${LIB_DIR}/w3lib.a ${LIB_DIR}/modelib.a ${LIB_DIR}/libncaru.a ${LIB_DIR}/bufr.a
+
+execs :	 ${EXECS} ${CEXECS}
+	${CP} $? ${ETC_DIR}; \
+	${CD} ${ETC_DIR}; \
+	${CHMOD} 755 $?
+
+.SUFFIXES : .x .o .f .F .c
+
+.F.f :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d' $*.i >$*.f ; rm $*.i
+
+.F.o :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d' $*.i >$*.f ; rm $*.i
+	${F77} ${FORT_FLAGS} -c $*.f
+
+.f.o :
+	${F77} ${FORT_FLAGS} -c $<
+
+.F.x :
+	if [ linux = mac ] ; then \
+		ranlib -s ${LIB} ; \
+	fi
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d' $*.i >$*.f ; rm $*.i
+	${F77} ${FORT_FLAGS} -c $*.f
+	${F77} ${LOAD_FLAGS} -o $@ $*.o ${LIB}
+
+.o.x :
+	if [ linux = mac ] ; then \
+		ranlib -s ${LIB} ; \
+	fi
+	${F77} ${LOAD_FLAGS} -o $@ $< ${LIB}
+
+.f.x :
+	if [ linux = mac ] ; then \
+		ranlib -s ${LIB} ; \
+	fi
+	${F77} ${FORT_FLAGS} -c $<
+	${F77} ${LOAD_FLAGS} -o $@ $*.o ${LIB}
+
+.c :
+	${CC} -o $@ ${INCLUDE_DIR} $< -lm
+
+clean :
+	- ${RM} -f *.f *.o *.x *.a core ${EXECS} ${CEXECS}
+	- ${CD} ${ETC_DIR}; ${RM} -rf ${EXECS} ${CEXECS}
+
+# DO NOT DELETE

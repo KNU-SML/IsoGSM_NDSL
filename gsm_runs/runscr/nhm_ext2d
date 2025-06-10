@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+#  extract serface fields for 2 dimensionl file
+#
+rm ./p2s*.dat ./p2s.tmp 2>/dev/null
+read KTST KTEND KTDTO DT< ktcard.txt
+echo "$0:KTST=$KTST KTEND=$KTEND KTDTO=$KTDTO DT=$DT" >>ERROR.out
+#
+CNT=0
+CNTEND=$KTEND
+CTINT=$KTDTO
+while test  ${CNT} -le ${CNTEND} 
+do
+	if test ${CNT} -le 9
+	then
+		CNT=0${CNT}
+	fi
+#
+	wgrib -s $RPGB_DIR/r_pgb.ft${CNT} >inventory.$$ 2>/dev/null
+	grep ":UGRD:10 m above gnd:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":VGRD:10 m above gnd:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":TMP:2 m above gnd:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":SPFH:2 m above gnd:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":SOILW:0-10 cm down:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":SOILW:10-40 cm down:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":SOILW:40-100 cm down:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":TMP:0-10 cm down:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":TMP:10-40 cm down:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":TMP:40-100 cm down:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":TMP:100-200 cm down:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":ICEC:sfc:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":WEASD:sfc:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+	grep ":SFCR:sfc:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft${CNT} -append -o ./p2s${CNT}.dat 1>/dev/null 
+#
+	CNT=`expr ${CNT} + ${CTINT} `
+done
+rm inventory.$$
+#

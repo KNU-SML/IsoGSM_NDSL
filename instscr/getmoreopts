@@ -1,0 +1,109 @@
+#!/bin/sh
+#
+OTHER_LIST="MPIVSN BIT64 LINUXDIST LINUXVSN NETCDFVSN DEBUG USERNAME"
+#
+if [ -s .hist ] ; then
+		for var in $OTHER_LIST
+		do
+			eval $var=`grep "^$var=" .hist | cut -d'=' -f2`
+		done
+fi
+#
+# defaults
+#
+if [ -z "$MPIVSN" ] ; then
+	MPIVSN=1
+	if [ "$NICKNAME" = atlas ] ; then
+		which  which mpif90 | grep mpich2 >/dev/null
+		if [ $? -eq 0 ] ; then
+			MPIVSN=2
+		fi
+	fi
+fi
+if [ -z "$BIT64" ] ; then
+	BIT64=no
+fi
+if [ -z "$LINUXDIST" ] ; then
+	LINUXDIST=1
+fi
+if [ -z "$LINUXVSN" ] ; then
+	LINUXVSN=0
+fi
+if [ -z "$NETCDFVSN" ] ; then
+	NETCDFVSN=3
+fi
+if [ -z "$DEBUG" ] ; then
+	DEBUG=no
+fi
+if [ -z "$USERNAME" ] ; then
+	USERNAME=m0101
+fi
+#
+if [ "$continue" != yes ] ; then
+	echo ' '
+	echo "Additional options:"
+	echo "If you need to change"
+	echo "  mpi-version=$MPIVSN" 
+	echo "  compile-in-64-bit=$BIT64"
+	echo "  linux-distribution=$LINUXDIST"
+	echo "  linux-vsn=$LINUXVSN"
+	echo "  netcdf-vsn=$NETCDFVSN"
+	echo "  debug option=$DEBUG"
+	echo "  username=$USERNAME"
+	echo -n "enter yes, else press enter or no==>"
+	read yorn
+	if [ "$yorn" = yes -o "$yorn" = y ] ; then
+		if [ "$MARCH" = mpi -o "$MARCH" = hybrid ] ; then
+			echo -n "Type mpi version [1/2/openmpi] [return=$MPIVSN]==>"
+			read mpivsn
+			if [ ! -z "$mpivsn" ] ; then
+				MPIVSN=$mpivsn
+			fi
+		fi
+		if [ "$MACHINE" = linux ] ; then
+			echo -n "Type 64 bit compiler [yes/no] [return=$BIT64]==>"
+			read bit64
+			if [ ! -z "$bit64" ] ; then
+				BIT64=$bit64
+			fi
+			echo -n "Type linux distribution [e.g. redhat] [return=$LINUXDIST]==>"
+			read linuxdist
+			if [ ! -z "$linuxdist" ] ; then
+				LINUXDIST=$linuxdist
+			fi
+			echo -n "Type in linux version [e.g. 7.1] [return=$LINUXVSN]==>"
+			read linuxvsn
+			if [ ! -z "$linuxvsn" ] ; then
+				LINUXVSN=$linuxvsn
+			fi
+			echo -n "Type in netcdf version [3/4] [return=$NETCDFVSN]==>"
+			read netcdfvsn
+			if [ ! -z "$netcdfvsn" ] ; then
+				NETCDFVSN=$netcdfvsn
+			fi
+			echo -n "Type in debug option [yes/no] [return=$DEBUG]==>"
+			read debug
+			if [ ! -z "$debug" ] ; then
+				DEBUG=$debug
+			fi
+			echo -n "Type in uersname [m0101] [return=$USERNAME]==>"
+			read username
+			if [ ! -z "$username" ] ; then
+				USERNAME=$username
+			fi
+		fi
+	fi
+fi
+for list in $OTHER_LIST
+do
+	grep "$list=" .hist >/dev/null 2>/dev/null
+	rc=$?
+	val=\$$list
+	val=`eval echo $val`
+	sed "s/$list=.*/$list=$val/g" .hist >tmp.$$
+	if [ $rc -eq 0 ] ; then
+		mv tmp.$$ .hist	
+	else
+		echo $list=$val >>.hist
+	fi
+done

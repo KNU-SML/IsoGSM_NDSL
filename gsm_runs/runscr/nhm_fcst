@@ -1,0 +1,25 @@
+#!/bin/sh
+set -ax
+#
+PROG=nhm_fcst
+#
+#  link nhm forecast executable
+#
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/fcst_nfx.x $PROG.x
+#
+#  Execute nhm
+#
+hx=00
+here_dir=`pwd`
+if [ mpi = mpi -o mpi = hybrid ] ; then
+	. /rhome/yeong/test/svrtest/gsm_runs/runscr/mpisub $PROG.x:$NHM_NPES:
+	cc=$?
+else
+	./$PROG.x 1>${PROG}.out 2>&1
+	cc=$?
+fi
+if [ $cc -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+exit 0

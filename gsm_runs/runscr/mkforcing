@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+RPGB_DIR=$1
+RSM_DAYS=$2
+#
+fhour=`expr $RSM_DAYS \* 24`
+cat - > fhour.txt << EOF
+$fhour
+EOF
+#
+hhs=24
+hhe=$fhour
+hh=$hhs
+while [ $hh -le $hhe ] ; do
+	wgrib -s $RPGB_DIR/r_pgb.ft$hh | egrep "(:UFLX:|:VFLX:|:SHTFL:|:LHTFL:|:TMP:sfc:|:DLWRF:sfc:|:ULWRF:sfc:|:USWRF:sfc:|:DSWRF:sfc:|:PRATE:sfc:)" | wgrib -i $RPGB_DIR/r_pgb.ft$hh -o  forcing.ft$hh.dat
+	hh=`expr $hh + 24`
+done
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/oceanforc.x .
+./oceanforc.x 2>oceanforc.out

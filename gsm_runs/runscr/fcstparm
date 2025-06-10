@@ -1,0 +1,130 @@
+#!/bin/sh
+set -x
+#
+#  forecast namelist data
+#
+#  $1 ... INCHOUR forecast length of the segment
+#  $2 ... ENDHOUR forecast hour to the end
+#  $3 ... INTSFCX surface program execution interval
+#  $4 ... INSIG:INTSFC:INTPOST output intervals of sig, sfc and flx files
+#
+#  The following variables can be overwritten by defining it in
+#  the calling program and by exporting it
+#
+#      SWHR_GBL ... short wave radiation interval in hour unit (default 6)
+#      LWHR_GBL ... long wave radiation interval in hour unit (default 6)
+#      INTPFIX  ... interval of pressure correction in hour unit (default 24)
+#
+INCHOUR=$1
+ENDHOUR=$2
+INTSFCX=$3
+INTSIG=`echo $4 | cut -d':' -f1`
+INTSFC=`echo $4 | cut -d':' -f2`
+INTPOST=`echo $4 | cut -d':' -f3`
+INTRESTART=`echo $4 | cut -d':' -f4`
+#
+SWHR_GBL=${SWHR_GBL:=6}
+LWHR_GBL=${LWHR_GBL:=6}
+INTPFIX=${INTPFIX:=24}
+#
+cat >fcst.parm <<EOF
+ &NAMSMF
+ NUM(5)=0,
+ CON(1)=1800.,CON(3)=0.,
+ CON(4)=$SWHR_GBL.,CON(5)=$LWHR_GBL.,
+ CON(7)=$INCHOUR.,
+ CON(9)=$INCHOUR.,CON(17)=$ENDHOUR.,
+ INTPFIX=$INTPFIX,
+ INTSFCX=$INTSFCX,
+ INTSIG=$INTSIG,
+ INTSFC=$INTSFC,
+ INTPOST=$INTPOST,
+ INTRESTART=$INTRESTART,
+/
+ &SOIL_VEG
+ DEFINED_VEG=13,
+ DEFINED_SOIL=9,
+/
+ &NAMSFC
+ FNOROG='/rhome/yeong/test/svrtest/gsm/bin/orogrd.smth'
+ FNMASK='/rhome/yeong/test/svrtest/gsm/bin/slmsk'
+ FNMSKG='/rhome/yeong/test/svrtest/libs/con/clim.maskh.grib'
+ CONDIR='/rhome/yeong/test/svrtest/libs/con'
+ BINDIR='/rhome/yeong/test/svrtest/gsm/bin'
+ FNGRB(1)='clim.glacier.grib    '
+ FNGRB(2)='clim.maxice.grib     '
+ FNGRB(4)='$ICE_GRB'
+ FNGRB(5)='$SCV_GRB'
+ FNGRB(6)='$SNO_GRB'
+ FNGRB(7)='$SST_GRB'
+ FNGRB(8)='clim.yhalbedo.grib   '
+ FNGRB(9)='clim.sibalbedo.grib  '
+ FNGRB(10)='clim.yhalbedo.grib   '
+ FNGRB(13)='clim.sibrough.grib   '
+ FNGRB(14)='clim.sibresis.grib   '
+ FNGRB(18)='clim.vegfrac.grib '
+ FNOBSST0='$SST_GRB_T0_FOR_PERSISTENCY'
+/
+EOF
+#
+#  FNOBSST0 is used for sst anomaly persistency run.  Give the file name
+#  of the initial sst analysis.  Also specify CLIMATOLOGICAL SST
+#  to the FNGRB(7) in fcstparm (SST_ANL in the run script)
+#
+#
+# for specificantion of FNGRB, see below:
+#
+#      parameter(igla= 1)  ! glacier points
+#      parameter(imxi= 2)  ! max ice extent
+#      parameter(imsk= 3)  ! land sea mask
+#      parameter(iais= 4)  ! sea ice mask/concentration
+#      parameter(iscv= 5)  ! snow cover
+#      parameter(isno= 6)  ! snow depth
+#      parameter(itsf= 7)  ! sst and land skin temp
+#      parameter(iab4= 8)  ! 4-type albedo
+#      parameter(iab1= 9)  ! 1-type albedo
+#      parameter(ialf=10)  ! albedo fraction
+#      parameter(iso2=11)  ! soil moisture osu2
+#      parameter(isn1=12)  ! soil moisture noa1
+#      parameter(izor=13)  ! surface roughness
+#      parameter(iplr=14)  ! stomato resistance
+#      parameter(itg3=15)  ! deep layer soil temp
+#      parameter(ito2=16)  ! soil temp osu2
+#      parameter(itn1=17)  ! soil temp noa1
+#      parameter(iveg=18)  ! vegetation cover
+#      parameter(ivet=19)  ! vegetation type
+#      parameter(isot=20)  ! soil type
+#      parameter(islo=21)  ! slope type
+#      parameter(isna=22)  ! snow albedo
+#      parameter(ismx=23)  ! max vegetation cover
+#      parameter(ismn=24)  ! min vegetation cover
+#      parameter(ivgv=25)  ! vic vegetation cover
+#      parameter(ivtv=26)  ! vic vegetation type
+#      parameter(ivrt=27)  ! root content for one vegetation type
+#      parameter(ibif=28)  ! vic curve parameter (N/A)
+#      parameter(ids =29)  ! Fract of dsm nonlinear baseflow begins
+#      parameter(idsm=30)  ! Maximum velocity of baseflow (mm/day)
+#      parameter(iws =31)  ! Fract maxi sm nonlinear baseflow occurs
+#      parameter(icef=32)  ! exponent used in infiltration curve (N/A)
+#      parameter(iexp=33)  ! Para the vari of Ksat with sm (N/A)
+#      parameter(ikst=34)  ! Saturated hydrologic conductivity (mm/day)
+#      parameter(idph=35)  ! Soil layer thickness (m)
+#      parameter(ibub=36)  ! Bubbling pressure of soil layer (cm)
+#      parameter(iqrt=37)  ! Quartz content of soil layer (fraction)
+#      parameter(ibkd=38)  ! Bulk density of soil layer (kg/m3)
+#      parameter(isld=39)  ! Soil density of soil layer (kg/m3)
+#      parameter(iwcr=40)  ! sm content at the critical point (mm)
+#      parameter(iwpw=41)  ! sm content wilting point (mm)
+#      parameter(ismr=42)  ! sm residual moisture (mm)
+#      parameter(islz=43)  ! surface roughness of bare soil (m)
+#      parameter(isnz=44)  ! surface roughness of snow pack (m)
+#      parameter(ilai=45)  ! leaf area index
+#      parameter(ivg2=46)  ! vic2 vegetation cover
+#      parameter(irt1=47)  ! root content for layer 1
+#      parameter(irt2=48)  ! root content for layer 2
+#      parameter(irt3=49)  ! root content for layer 3
+#      parameter(isv1=50)  ! soil moisture vic1
+#      parameter(itv1=51)  ! soil temperature vic1
+#      parameter(isv2=52)  ! soil moisture vic2
+#      parameter(itv2=53)  ! soil temperature vic2
+#      parameter(iobp=54)  ! observed precipitation

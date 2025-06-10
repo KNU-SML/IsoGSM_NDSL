@@ -1,0 +1,81 @@
+#!/bin/sh
+#
+#  execute grmap but link grib files to different name before the execution.
+#  this allows selecting grib files from series of grib files in the directory.
+#
+#  this script assumes that the input grib file name takes the form of
+#   aaa.ftxx, where aaa is any number of characters, and xx is any two or
+#   greater digit of forecast hour.
+#
+USAGE="Usage: $0 starting_forecast_hour ending_forecast_hour forecast_hour_increment [grmap argument] gribfile_name_in_%_format"
+if [ $# -eq 0 ] ; then
+  echo $USAGE
+  #
+  echo ' -G :launches grads at the end'
+  echo ' -n  :flag for non-grib file, namely znl, ken and bges files.'
+  echo ' -i  :Interactive mode'
+  echo ' -o dir :Create control files in dir'
+  echo '     without -o, files are created in the input grib file directory'
+  echo ' -g arg :gribmap arguments'
+  echo ' -c arg :arg=[osu,noah,vic] osu default'
+  exit 8
+fi
+
+#
+dir=`echo $0 | sed 's?/[^/]*$??g'`
+currdir=`pwd`
+cd $dir
+GRMAPDIR=`pwd`
+echo "GRMAPDIR=$GRMAPDIR"
+export GRMAPDIR
+cd $currdir
+#
+hrstart=$1
+hrend=$2
+hrinc=$3
+shift 
+shift 
+shift 
+set -- `getopt o:g:c:inG $*`
+err=$?
+while [ "$1" != "--" -a $err -eq 0 ]
+do
+  case $1 in
+    -n) nflag=$1 ;;
+    -i) iflag=$1 ;;
+    -G) Gflag=$1 ;;
+    -o) oarg=$2 ;;
+    -g) garg=$2 ;;
+    -c) carg=$2 ;;
+  esac
+  shift
+done
+shift
+filenam=$1
+nam=`echo $filenam | sed 's%.*/%%g'`
+nam1=`echo $nam | cut -d'.' -f1`
+nnam=R_$nam
+nnam1=R_$nam1
+dir=`echo $filenam | sed 's%[^/]*%%g'`
+nfilenam=${dir}$nnam
+#
+hr=$hrstart
+while [ $hr -le $hrend ] ; do
+  hrr=$hr
+  if [ $hrr -lt 10 ] ; then
+    hrr=0$hrr
+  fi
+  ln -fs $nam1.ft$hrr $nnam1.ft$hrr
+  hr=`expr $hr + $hrinc`
+done
+#
+if [ ! -z "$carg" ] ; then
+	carg="-c$carg"
+fi
+if [ ! -z "$garg" ] ; then
+	carg="-g$garg"
+fi
+if [ ! -z "$oarg" ] ; then
+	carg="-o$oarg"
+fi
+$GRMAPDIR/grmap $nflag $iflag $Gflag $oarg $garg $carg $nfilenam

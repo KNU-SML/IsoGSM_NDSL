@@ -1,0 +1,30 @@
+c
+      integer lwvmaxodd
+     *       ,locsndnl2ny,locrcvnl2ny,lensndnl2ny,lenrcvnl2ny
+     *       ,locsndny2nl,locrcvny2nl,lensndny2nl,lenrcvny2nl
+     *       ,locsndnk2nx,locrcvnk2nx,lensndnk2nx,lenrcvnk2nx
+     *       ,locsndnl2nyall,locrcvnl2nyall
+     *       ,lensndnl2nyall,lenrcvnl2nyall
+     *       ,locsndny2nlall,locrcvny2nlall
+     *       ,lensndny2nlall,lenrcvny2nlall
+     *       ,locsndnk2nxall,locrcvnk2nxall
+     *       ,lensndnk2nxall,lenrcvnk2nxall
+      common /comrmpiplus/ lwvmaxodd
+     * ,locsndnl2ny(nrow_,4),locrcvnl2ny(nrow_,4)
+     * ,lensndnl2ny(nrow_,4),lenrcvnl2ny(nrow_,4)
+     * ,locsndny2nl(nrow_,4),locrcvny2nl(nrow_,4)
+     * ,lensndny2nl(nrow_,4),lenrcvny2nl(nrow_,4)
+     * ,locsndnk2nx(ncol_,4),locrcvnk2nx(ncol_,4)
+     * ,lensndnk2nx(ncol_,4),lenrcvnk2nx(ncol_,4)
+     * ,locsndnl2nyall(nrow_,4,npes_)
+     * ,locrcvnl2nyall(nrow_,4,npes_)
+     * ,lensndnl2nyall(nrow_,4,npes_)
+     * ,lenrcvnl2nyall(nrow_,4,npes_)
+     * ,locsndny2nlall(nrow_,4,npes_)
+     * ,locrcvny2nlall(nrow_,4,npes_)
+     * ,lensndny2nlall(nrow_,4,npes_)
+     * ,lenrcvny2nlall(nrow_,4,npes_)
+     * ,locsndnk2nxall(ncol_,4,npes_)
+     * ,locrcvnk2nxall(ncol_,4,npes_)
+     * ,lensndnk2nxall(ncol_,4,npes_)
+     * ,lenrcvnk2nxall(ncol_,4,npes_)

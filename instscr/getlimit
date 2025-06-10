@@ -1,0 +1,68 @@
+#!/bin/sh
+if [ "$INSTITUTION" = ecpc -o "$INSTITUTION" = sio ] ; then
+	time_limit=
+elif [ "$MACHINE" = es ] ; then 
+	time_limit=7200
+elif [ "$MACHINE" = ibmsp ] ; then 
+	time_limit=00:30
+else
+	time_limit=00:30
+fi
+#
+timel=
+if [ -s .hist ] ; then
+	timel=`grep "^time_limit=" .hist | cut -d"=" -f2`
+fi
+if [ ! -z "$timel" ] ; then
+	time_limit=$timel
+fi
+if [ ! -z "$time_limit" ] ; then
+	if [ "$continue" != yes ] ; then
+		echo "time_limit is: $time_limit"
+		echo -n "if this is correct, type <enter>. Otherwise, type time_limit.==>"
+		read timel
+	else
+		timel=
+	fi
+	if [ ! -z "$timel" ] ; then
+		time_limit=$timel
+	fi
+	grep time_limit= .hist >/dev/null 2>/dev/null
+	rc=$?
+	sed "s/time_limit=.*/time_limit=$time_limit/g" .hist >tmp.$$
+	if [ $rc -eq 0 ] ; then
+		mv tmp.$$ .hist	
+	else
+		echo time_limit=$time_limit >>.hist
+	fi
+fi
+#
+if [ "$MACHINE" = nec -o "$MACHINE" = es -o "$MACHINE" = sx6 ] ; then
+	memory_limit=10GB
+	if [ "$MACHINE" = es ] ; then 
+		memory_limit=40Gb
+	fi
+else
+	memory_limit=
+fi
+if [ -s .hist -a ! -z "$memory_limit" ] ; then
+	memory_limit=`grep "^memory_limit=" .hist | cut -d"=" -f2`
+	if [ "$continue" != yes ] ; then
+		echo "memory_limit is: $memory_limit"
+		echo -n "if this is correct, type <enter>. Otherwise, type memory_limit.==>"
+		read meml
+	else
+		meml=
+	fi
+	if [ ! -z $meml ] ; then
+		memory_limit=$meml
+	fi
+	grep memory_limit= .hist >/dev/null 2>/dev/null
+	rc=$?
+	sed "s/memory_limit=.*/memory_limit=$memory_limit/g" .hist >tmp.$$
+	if [ $rc -eq 0 ] ; then
+		mv tmp.$$ .hist	
+	else
+		echo memory_limit=$memory_limit >>.hist
+	fi
+fi

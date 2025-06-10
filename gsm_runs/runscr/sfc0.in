@@ -1,0 +1,128 @@
+#!/bin/sh
+#
+#  This script replaces specified field in the initial sfc file
+#  It is necessary to edit variables defined in the lines between 
+#  the two #===================================== lines below to select
+#  the fields to be replaced.  Current default is SNOW_DEPTH and
+#  SOIL_WETNESS (both layers) are set to climatology
+#
+#  $1 .... input sfc file name
+#  $2 .... output sfc file name
+#  $3 .... input sfc file type [osu1,osu2,noa1,vic1]
+#
+set -x
+if [ $# -ne 3 ] ; then
+	echo $0: Argument error
+	echo '$1'=$1 
+	echo '$2'=$2 
+	echo '$3'=$3 
+	exit 8
+fi
+#
+FNIN=$1
+FNOUT=$2
+SFCFTYPIN=$3
+#
+PROG=sfc0
+#
+cat >${PROG}.parm <<EOF
+ &NAMSFC0
+ FNIN='$FNIN',
+ FNOUT='$FNOUT',
+ SFCFTYPIN='$SFCFTYPIN',
+/
+EOF
+cat >>${PROG}.parm <<EOF
+ &NAMSFC
+ FNOROG='@MODEL_DIR@/bin/orogrd.smth'
+ FNMASK='@MODEL_DIR@/bin/slmsk'
+EOF
+cat >>${PROG}.parm <<EOF
+ FNMSKG='@LIBS_DIR@/con/clim.maskh.grib'
+ CONDIR='@LIBS_DIR@/con'
+ BINDIR='@MODEL_DIR@/bin'
+ FNGRB(1)='clim.glacier.grib    '
+ FNGRB(2)='clim.maxice.grib     '
+ FNGRB(4)='$ICE_GRB_T0'
+ FNGRB(5)='$SCV_GRB_T0'
+ FNGRB(6)='$SNO_GRB_T0'
+ FNGRB(7)='$SST_GRB_T0'
+ FNGRB(8)='clim.yhalbedo.grib   '
+ FNGRB(9)='clim.sibalbedo.grib  '
+ FNGRB(10)='clim.yhalbedo.grib   '
+ FNGRB(13)='clim.sibrough.grib   '
+ FNGRB(14)='clim.sibresis.grib   '
+ FNGRB(15)='clim.tg3.grib        '
+ FNGRB(18)='clim.vegfrac@VEG_RES@.grib '
+ FNGRB(19)='clim.vegtype@VEG_RES@.grib '
+ FNGRB(20)='clim.soiltype@VEG_RES@.grib'
+ FNGRB(21)='clim.slptyp.grib     '
+ FNGRB(22)='clim.snoalb.grib     '
+ FNGRB(23)='clim.shdmax.grib     '
+ FNGRB(24)='clim.shdmin.grib     '
+/
+EOF
+rm -rf $PROG.x
+ln -fs @MODEL_DIR@/bin/$PROG.x $PROG.x
+./$PROG.x < $PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+#
+# for specificantion of FNGRB, see below:
+#
+#      parameter(igla= 1)  ! glacier points
+#      parameter(imxi= 2)  ! max ice extent
+#      parameter(imsk= 3)  ! land sea mask
+#      parameter(iais= 4)  ! sea ice mask/concentration
+#      parameter(iscv= 5)  ! snow cover
+#      parameter(isno= 6)  ! snow depth
+#      parameter(itsf= 7)  ! sst and land skin temp
+#      parameter(iab4= 8)  ! 4-type albedo
+#      parameter(iab1= 9)  ! 1-type albedo
+#      parameter(ialf=10)  ! albedo fraction
+#      parameter(iso2=11)  ! soil moisture osu2
+#      parameter(isn1=12)  ! soil moisture noa1
+#      parameter(izor=13)  ! surface roughness
+#      parameter(iplr=14)  ! stomato resistance
+#      parameter(itg3=15)  ! deep layer soil temp
+#      parameter(ito2=16)  ! soil temp osu2
+#      parameter(itn1=17)  ! soil temp noa1
+#      parameter(iveg=18)  ! vegetation cover
+#      parameter(ivet=19)  ! vegetation type
+#      parameter(isot=20)  ! soil type
+#      parameter(islo=21)  ! slope type
+#      parameter(isna=22)  ! snow albedo
+#      parameter(ismx=23)  ! max vegetation cover
+#      parameter(ismn=24)  ! min vegetation cover
+#      parameter(ivgv=25)  ! vic vegetation cover
+#      parameter(ivtv=26)  ! vic vegetation type
+#      parameter(ivrt=27)  ! root content for one vegetation type
+#      parameter(ibif=28)  ! vic curve parameter (N/A)
+#      parameter(ids =29)  ! Fract of dsm nonlinear baseflow begins
+#      parameter(idsm=30)  ! Maximum velocity of baseflow (mm/day)
+#      parameter(iws =31)  ! Fract maxi sm nonlinear baseflow occurs
+#      parameter(icef=32)  ! exponent used in infiltration curve (N/A)
+#      parameter(iexp=33)  ! Para the vari of Ksat with sm (N/A)
+#      parameter(ikst=34)  ! Saturated hydrologic conductivity (mm/day)
+#      parameter(idph=35)  ! Soil layer thickness (m)
+#      parameter(ibub=36)  ! Bubbling pressure of soil layer (cm)
+#      parameter(iqrt=37)  ! Quartz content of soil layer (fraction)
+#      parameter(ibkd=38)  ! Bulk density of soil layer (kg/m3)
+#      parameter(isld=39)  ! Soil density of soil layer (kg/m3)
+#      parameter(iwcr=40)  ! sm content at the critical point (mm)
+#      parameter(iwpw=41)  ! sm content wilting point (mm)
+#      parameter(ismr=42)  ! sm residual moisture (mm)
+#      parameter(islz=43)  ! surface roughness of bare soil (m)
+#      parameter(isnz=44)  ! surface roughness of snow pack (m)
+#      parameter(ilai=45)  ! leaf area index
+#      parameter(ivg2=46)  ! vic2 vegetation cover
+#      parameter(irt1=47)  ! root content for layer 1
+#      parameter(irt2=48)  ! root content for layer 2
+#      parameter(irt3=49)  ! root content for layer 3
+#      parameter(isv1=50)  ! soil moisture vic1
+#      parameter(itv1=51)  ! soil temperature vic1
+#      parameter(isv2=52)  ! soil moisture vic2
+#      parameter(itv2=53)  ! soil temperature vic2
+#      parameter(iobp=54)  ! observed precipitation

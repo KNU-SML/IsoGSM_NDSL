@@ -1,0 +1,54 @@
+#!/bin/sh
+#
+PROG=acqc
+echo `date` -- $PROG started  >>ERROR.out
+#
+cat <<EOF >$PROG.parm
+ &INPUT
+  DOSPOB = .FALSE., DOACRS=.FALSE., WINDOW=3.00, TIMINC=1.00,  
+  STCLIM = 41.9,    WAYPIN=.TRUE.,  INIDST= 2,   IFLGUS=1,
+  JAMASS = 6*0,     JAWIND= 6*0,                            
+  FWRITE = .TRUE.,  SWRITE=.FALSE., IWRITE=.FALSE., EWRITE=.FALSE.,
+  RCPTST=.FALSE.,IFLGUS=0,
+ &END
+EOF
+#
+rm bufr_aircft_acqc_output 2>/dev/null
+if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+	assign -R 
+	assign -a bufr_aircft -Fcos             fort.14
+	assign -a /rhome/yeong/test/svrtest/libs/con/landsea     fort.15
+	assign -a /rhome/yeong/test/svrtest/libs/con/waypts      fort.23
+	assign -a sdmacqc                       fort.52
+	assign -a sdmstac                       fort.53
+	assign -a bufr_aircft_acqc_output -Fcos fort.61
+	assign -a debugout                      fort.88
+else
+	rm -f fort.[0-9]* 2>/dev/null
+	ln -fs bufr_aircft                 fort.14
+	ln -fs /rhome/yeong/test/svrtest/libs/con/landsea   fort.15
+	ln -fs /rhome/yeong/test/svrtest/libs/con/waypts.asc fort.23
+	ln -fs sdmacqc                     fort.52
+	ln -fs sdmstac                     fort.53
+	ln -fs bufr_aircft_acqc_output     fort.61
+	ln -fs debugout                    fort.88
+fi
+if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+	NCPUS=1
+	export NCPUS
+fi
+rm -f $PROG.x
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/${PROG}.x $PROG.x
+./$PROG.x 1 <$PROG.parm >$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	grep 'NO "AIRCFT" TABLE A MESSAGES' $PROG.out
+	if [ $? -ne 0 ] ; then 
+		echo "`date` $0: Execution failed." >>ERROR.out
+		exit 8
+	else
+		echo `date` - $PROG No aircraft data. Execution contiues. >>ERROR.out
+	fi
+fi
+if [ linux != cray -a linux != t90 -o linux != t3e ] ; then
+	rm -f fort.[0-9]* 2>/dev/null
+fi

@@ -1,0 +1,65 @@
+#!/bin/sh
+#
+#  read 2 and 3 dimensional file of rsm
+#
+PROG=nhm_make_2_3_data
+#
+rm ./rsm2d-6h.dat ./rsm3d-6h.dat 2>/dev/null
+#
+#  ktcard
+#
+read KTST KTEND KTDTO DT< ktcard.txt
+echo "$0: KTST=$KTST KTEND=$KTEND KTDTO=$KTDTO DT=$DT" >>ERROR.out
+#
+CNT=0
+CNTEND=$KTEND
+CTINT=$KTDTO
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/$PROG.x $PROG.x
+while test  ${CNT} -le ${CNTEND} 
+do
+	if test ${CNT} -le 9
+	then
+		CNT=0${CNT}
+	fi
+	rm fort.* 
+	#
+	#input file
+	#
+	ln -fs ${RSIG_DIR}/r_sfc.ft${CNT}   fort.20
+	ln -fs ${RSIG_DIR}/r_sigit.ft${CNT} fort.25
+	ln -fs $OUTER_RSM_SRCS_DIR/define.h fort.50
+	ln -fs ./p2s${CNT}.dat              fort.60
+	#
+	# output file
+	#
+	ln -fs ./rsm2d-6h.tmp${CNT}         fort.30
+	ln -fs ./rsm3d-6h.tmp${CNT}         fort.35
+	#
+        cat << EOF >$PROG.parm
+ &adnum
+   iadd=$2 
+ &end
+EOF
+	./$PROG.x < $PROG.parm 1>$PROG.out 2>&1
+	if [ $? -ne 0 ] ; then
+		echo "`date` $0: Execution failed." >>ERROR.out
+		echo $PROG.x failed
+		exit 8
+	fi
+	CNT=`expr ${CNT} + ${CTINT} `
+done
+CNT=0
+CNTEND=$KTEND
+CTINT=$KTDTO
+while test  ${CNT} -le ${CNTEND} 
+do
+	if test ${CNT} -le 9
+	then
+		CNT=0${CNT}
+	fi
+	cat ./rsm2d-6h.tmp${CNT} >> ./rsm2d-6h.dat
+	cat ./rsm3d-6h.tmp${CNT} >> ./rsm3d-6h.dat
+	CNT=`expr ${CNT} + ${CTINT} `
+done
+rm ./rsm2d-6h.tmp* ./rsm3d-6h.tmp*  
+#rm ./p2s*.dat

@@ -1,0 +1,277 @@
+#insert-HEADER
+#
+set -ax
+#
+#  rsm integration from ready made initial condition
+#
+# ---------------  User changeable parameters -----------------
+#
+# run directory name
+#
+RUNNAME=r_000
+#
+USEERA=0  # 1:use era40 forcing
+#
+#  rsm domain specification
+# 
+#insert-domainspec
+#
+#  model parameters
+#
+ENDHOUR=48
+DELTAT_REG=@DELTAT_REG_WINTER@
+NESTING_HOUR=6
+SWHR_REG=1
+LWHR_REG=1
+INTSFCX=24
+INCHOUR=48
+INTPOST=3
+INTPGB=$INTPOST
+INTRESTART=6
+#
+# ------------- chenge below for expert only ----------------------
+#
+FCST_RESTART=yes
+#
+DELETE_SIGGLOB=yes
+#
+if [ $INCHOUR -lt $INTSFCX ] ; then
+	echo "INCHOUR < INTSFCX"
+	echo "INCHOUR set to INTSFCX to make sure sfc is called."
+fi
+
+#
+# You may modify EXECDIR to /tmp directory and keep this
+# scripts on your permanent disk.
+#
+EXECDIR=@RUNS_DIR@/$RUNNAME
+#
+SST_ANL_T0=
+SST_ANL=
+SNO_ANL_T0=
+SNO_ANL=
+ICE_ANL_T0=
+ICE_ANL=
+#
+# -------  do not change below  -------------------------------------
+#
+# ready-made initial condition and base field
+#
+FCST_NPES=@NPES@
+#
+GLOBAL_SIG_INITIAL=@LIBS_DIR@/con/sigft0090030900.asc
+GLOBAL_SFC_INITIAL=@LIBS_DIR@/con/sfcanl90030900.asc
+INITIAL_SFC_FILE_TYPE=osu1
+BASE_SIG=@LIBS_DIR@/con/sigft\${FH}90030900.asc
+#
+YYYYS=1990
+MMS=03
+DDS=09
+HHS=00
+#
+#   coarse rsm domain specification
+# 
+CPROJ=0.0
+CTRUTH=0.0
+CORIENT=0.0
+CDELX=0.0
+CDELY=0.0
+CCENLAT=0.0
+CCENLON=0.0
+CLFTGRD=0.0
+CBTMGRD=0.0
+#
+mkdir -p $EXECDIR 2>/dev/null
+scrnam=`echo $0 | sed 's?.*/??g'`
+cp $0 $EXECDIR/0LOG.$scrnam
+ls -l @MODEL_DIR@/bin >$EXECDIR/0LOG.bindates
+cd $EXECDIR
+#
+### prepare era40 forcing ###
+#
+if [ $USEERA -eq 1 ] ; then 
+	ERADATA=@LIBS_DIR@/con/era40_19900309.grib
+	if [ ! -r $ERADATA ] ; then
+	    echo No $ERADATA Abort
+	    exit 8
+	fi
+	#
+	TIME=0
+	while [ $TIME -le $ENDHOUR ] ; do
+	    if [ $TIME -lt 10 ] ; then
+		TIME=0$TIME
+	    fi
+	    @LIBS_DIR@/etc/incdte \
+		$YYYYS $MMS $DDS $HHS $TIME  >dteout$$ || exit 8
+	    read YYYYF MMF DDF HHF  <dteout$$ ; rm dteout$$
+	# 
+	    if [ ! -r ./era40_$YYYYF$MMF$DDF$HHF.p2sig ] ; then
+		@RUNSCR_DIR@/p2sig_era $ERADATA ./era40_$YYYYF$MMF$DDF$HHF.p2sig $YYYYF:$MMF:$DDF:$HHF:0 || exit 8
+	    fi
+	    if [ ! -r era40_ft${TIME}.p2sig.asc ] ; then
+		@LIBS_DIR@/etc/scnvrt gsm $INITIAL_SFC_FILE_TYPE \
+		    62:192:94:28 \
+		    $YYYYS:$MMS:$DDS:$HHS:$TIME \
+		    bin:asc \
+		    era40_$YYYYF$MMF$DDF$HHF.p2sig:dummy \
+		    era40_ft${TIME}.p2sig.asc:dummy1 || exit 8
+	    fi
+	    TIME=`expr ${TIME} + ${NESTING_HOUR}`
+	done
+	# redefine initial and base
+	GLOBAL_SIG_INITIAL=era40_ft00.p2sig.asc
+	BASE_SIG=era40_ft\${FH}.p2sig.asc
+fi
+#
+rm ERROR.out 2>/dev/null
+echo "`date` $0: started" >>ERROR.out
+#
+#  create namelist regional domain data
+#
+cat >rsm.parm <<EOF
+ &NAMLOC
+ RPROJ    = $RPROJ,
+ RTRUTH   = $RTRUTH,
+ RORIENT  = $RORIENT,
+ RDELX    = $RDELX,
+ RDELY    = $RDELY,
+ RCENLAT  = $RCENLAT,
+ RCENLON  = $RCENLON,
+ RLFTGRD  = $RLFTGRD,
+ RBTMGRD  = $RBTMGRD,
+ CPROJ    = $CPROJ,
+ CTRUTH   = $CTRUTH,
+ CORIENT  = $CORIENT,
+ CDELX    = $CDELX,
+ CDELY    = $CDELY,
+ CCENLAT  = $CCENLAT,
+ CCENLON  = $CCENLON,
+ CLFTGRD  = $CLFTGRD,
+ CBTMGRD  = $CBTMGRD,
+/
+EOF
+#
+#  automatic restart
+#
+if [ -s r_sigit -a -s r_sigitdt -a -s r_sfci -a $FCST_RESTART = yes ] ; then
+	#
+	#  restart
+	#
+    ft=`ls -lt r_sigit.ft* | head -1 | awk '{print $9}' | sed 's/.*\.ft//g'`
+    cp r_sigit.ft$ft r_sigit || exit 8
+    cp r_sigitdt.ft$ft r_sigitdt || exit 8
+    cp r_sfc.ft$ft r_sfci || exit 8
+	h=`@LIBS_DIR@/etc/fhour r_sigit`
+	echo fhour in the r_sigit file = $h
+else
+	#
+	#  cold start
+	#
+	#  Initial condition.  Convert to native format
+	#
+	INPUT_RESOLUTION=t@JCAP@k@LEVS@
+	export INPUT_RESOLUTION
+	#
+	#  generate rsm initial condition from global files
+	#
+	if [ ! -s r_sigit.ft00 -o ! -s r_sfc.ft00 ] ; then
+		#
+		#  convert input global files to binary
+		#
+                @LIBS_DIR@/etc/scnvrt gsm $INITIAL_SFC_FILE_TYPE \
+			@JCAP@:@LONF@:@LATG@:@LEVS@ \
+			$YYYYS:-1:-1:-1:-1 \
+			asc:bin \
+			$GLOBAL_SIG_INITIAL:$GLOBAL_SFC_INITIAL \
+			sig.ft00:sfc.ft00 || exit 8
+		#
+		#  horizontal transform/interpolation
+		#
+		@RUNSCR_DIR@/r_inpg $INITIAL_SFC_FILE_TYPE \
+			sig.ft00:sfc.ft00 \
+			r_sigit.ft00:r_sfc.ft00 || exit 8
+	fi
+	#
+	#  renew r_sfc files using grib data input
+	#
+	SST_GRB=`eval echo $SST_ANL`
+	SNO_GRB=`eval echo $SNO_ANL`
+	ICE_GRB=`eval echo $ICE_ANL`
+	export SST_GRB SNO_GRB ICE_GRB
+	@RUNSCR_DIR@/rsfc0 r_sfc.ft00 r_sfci $INITIAL_SFC_FILE_TYPE || exit 8
+	cp r_sfci r_sfc.ft00
+	cp r_sigit.ft00 r_sigit
+	cp r_sigit r_sigitdt
+	#
+	h=0
+fi
+#
+#  forecast loop
+#
+while [ $h -lt $ENDHOUR ];do
+	h=`expr $h + 0`
+	hx=`expr $h + $INCHOUR`
+	if [ $hx -lt 10 ]; then hx=0$hx; fi
+	#
+	#  link base field to properly named file	
+	#
+	fhend=`expr $INCHOUR + $NESTING_HOUR`
+	modf=`expr $fhend \/ $NESTING_HOUR`
+	if [ `expr $modf \* $NESTING_HOUR` -ne $fhend ] ; then
+		fhend=`expr \( $modf + 1 \) \* $NESTING_HOUR`
+	fi
+	fh=0
+	while [ $fh -le $fhend ] ; do
+		FH=`expr $fh + $h`
+		FH=`expr \( $FH \/ $NESTING_HOUR \) \* $NESTING_HOUR`
+		if [ $FH -gt $ENDHOUR ] ; then
+			break
+		fi
+		if [ $FH -lt 10 ]; then FH=0$FH; fi
+		if [ ! -s base_sig.ft$FH ] ; then
+			fname=`eval echo $BASE_SIG`
+			@LIBS_DIR@/etc/scnvrt gsm $INITIAL_SFC_FILE_TYPE \
+				@JCAP@:@LONF@:@LATG@:@LEVS@ \
+				$YYYYS:-1:-1:-1:-1 \
+				asc:bin \
+				$fname:dummy \
+				base_sig.ft$FH:dummy1 || exit 8
+				@RUNSCR_DIR@/basefnam base_sig.ft$FH
+		fi
+		fh=`expr $fh + $NESTING_HOUR`
+	done
+	#
+	#  generate forecast namelist data
+	#
+	SST_GRB=`eval echo $SST_ANL`
+	SNO_GRB=`eval echo $SNO_ANL`
+	ICE_GRB=`eval echo $ICE_ANL`
+	export SST_GRB SNO_GRB ICE_GRB
+	@RUNSCR_DIR@/r_fcstparm $INCHOUR $ENDHOUR $DELTAT_REG \
+							$NESTING_HOUR $INTPOST $INTPGB $INTSFCX $INTRESTART || exit 8
+	#
+	#  Execute forecast
+	#
+	export MP_SET_NUMTHREADS
+	@RUNSCR_DIR@/r_fcst $h $hx $INCHOUR $INTPOST || exit 8
+	#
+	#  copy files for next forecast segment
+	#
+	cp r_sigit.ft$hx  r_sigit   || exit 8
+	mv r_sigitdt.ft$hx r_sigitdt || exit 8
+	cp r_sfc.ft$hx  r_sfci    || exit 8
+	#
+	#  post processing
+	#
+	if [ "@DOPOST@" = DEFINED ] ; then
+		@RUNSCR_DIR@/r_post $h $hx $INTPOST || exit 8
+	elif [ "@CATPGB@ " = DEFINED ] ; then
+		@LIBS_DIR@/etc/catpgb
+	fi
+	#
+	h=$hx
+done
+if [ @MACHINE@ = mac -a @MARCH@ = mpi ] ; then
+	lamclean
+	lamhalt
+fi

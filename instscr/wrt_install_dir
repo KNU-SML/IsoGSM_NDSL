@@ -1,0 +1,4 @@
+#!/bin/sh
+#
+sed "s!^GRSM_BASE_DIR=.*!GRSM_BASE_DIR=$install_dir!g" ./def/sysvars.defs >tmp.$$
+mv tmp.$$ ./def/sysvars.defs

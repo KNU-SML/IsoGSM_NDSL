@@ -1,0 +1,116 @@
+#!/bin/sh 
+set -a
+#
+#  default model library directory, model, model define and institution
+#
+MODEL=gsm
+LIBS_DIR=/rhome/eunchul/GRSM/IsoGSM/libs
+MODEL_DEFINE=`pwd`/../def/def_gsm/gsm62k28
+NPES=36
+NCOL=4
+MARCH=mpi
+#
+COUPLE_WITH=
+#
+#         if you provide them, they should be as NPES=NCOL*NROW
+#         if you want to run 1-d decomposition, then NCOL=1 and NROW=NPES
+#    NCOL           .... number of column (when MARCH=mpi or hybrid)
+#    NROW           .... number of row (when MARCH=mpi or hybrid)
+#      NCOL, NROW will be calculated if they are blank.
+#
+# =========================================================================
+#
+currdir=`pwd`
+cd $LIBS_DIR
+cpdir=`pwd`
+cd $currdir
+#
+# temporally store MARCH because it is overwritten by get_libvars
+#
+echo $MARCH >tmp.$$
+#
+if [ "$currdir" != "$cpdir" ] ; then
+	cp $LIBS_DIR/machine.h . || exit 8
+fi
+#
+#  get key variables from configure-libs
+#
+. $LIBS_DIR/get_libvars
+#
+#  restore ogitinal MARCH
+#
+read MARCH <tmp.$$
+rm tmp.$$
+#
+install_dir=../
+. ../instscr/usage
+#
+#  define necessary variables based on key
+#  execute get_sysvars again, in case the sysvars.defs and related files are
+#  updated.
+#
+../def/get_sysvars
+. ./sysvars
+#
+#  Warning section
+#
+if [ $MARCH = mpi -o $MARCH = hybrid ] ; then
+	if [ -z "$MPICH_DIR" ] ; then
+			echo "$MPICH_DIR=$MPICH_DIR not defined"
+			echo "Edit $OPTIONS_FILE and add values to MPICH_DIR"
+			exit 8
+	else
+		if [ ! -s "$MPICH_DIR" ] ; then
+			echo "$MPICH_DIR=$MPICH_DIR defined but does not exist"
+			echo "Edit $OPTIONS_FILE and change to correct directory"
+			exit 8
+		fi
+	fi
+fi
+#
+defdir=`echo $MODEL_DEFINE | sed 's%/[^/]*$%%g'`
+if [ ! -s $defdir ] ; then
+	echo "Directory $defdir missing"
+	exit 8
+fi
+#
+#  configure-model defined variables
+#
+MODEL_DIR=`pwd`
+#
+#  Create install directory
+#
+mkdir -p $MODEL_DIR/bin 2>/dev/null
+#
+#  make define.h
+#
+../def/makedefine
+#
+#  List of Makefile.in directories to configure
+#
+umodel=`echo $MODEL | tr "[a-z]" "[A-Z]"`
+SRC_DIRS=\$${umodel}_PROGS
+SRC_DIRS=`eval echo $SRC_DIRS`
+MARCH_SRC_DIRS=\$${umodel}_MPI_PROGS
+MARCH_SRC_DIRS=`eval echo $MARCH_SRC_DIRS`
+#
+#  create bourn shell script "mdlvars' to define variables from define.h
+#
+. ../def/get_mdlvars
+. ./mdlvars
+#
+#  Configure
+#
+cat mdlvars.sed >sed.dat
+sed '/@MARCH@/d' sysvars.sed >>sed.dat
+#
+echo "creating Makefiles"
+sed -f sed.dat ../makefiles/Makefile.$MODEL.in >Makefile
+#
+# copy domain spec file from def_$model directory
+#
+cp $MODEL_DEFINE/*domainspec* . 2>/dev/null
+#
+# Edit all the *.in files in this directory and all the subdirctories
+#
+../makefiles/sedit_files

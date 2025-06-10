@@ -1,0 +1,57 @@
+#!/bin/sh
+if [ -z "$model_res_area" ] ; then
+	res_num_existx=\$res_num_exist_$count
+	res_num_existx=`eval echo $res_num_existx`
+	if [ -z "$res_num_existx" ] ; then
+		res_num_existx=34
+	fi
+fi
+ls -1d ./def/def_roms/roms*  | sed 's%.*/%%g' >out.$$
+nn=`wc -l out.$$ | awk '{print $1}'`
+if [ "$continue" != yes ] ; then
+	echo " "
+	echo "Model resolution and domain specification"
+	n=1
+	while [ $n -le $nn ] ; do
+		echo "($n) `sed -n "$n"p out.$$`"
+		n=`expr $n + 1`
+	done
+	echo " "
+	echo "Type the number associated with your model dimension specification."
+	echo -n "If there is no choice available, type 999 [return=$res_num_existx]==>"
+	read num
+else
+	num=
+fi
+if [ -z "$num" ] ; then
+	num=$res_num_existx
+elif [ "$num" -eq 999 ] ; then
+	echo "1. create romsIGRDxJGRD_DOM_HKMkm_PROJ directory in def_roms"
+	echo "  where IGRD is regional model x-dimension (e.g. 81)"
+	echo "        JGRD is regional model y-dimension (e.g. 87)"
+	echo "        DOM  is a neme of the domain (e.g. usa)"
+	echo "        HKM  is regional model grid distance in km"
+	echo "        PROJ is regional model map projection [merc/str]"
+	echo "2. In that directory, create define.h and"
+	echo "     DOM_IGRDxJGRD_HKMkm_PROJ.h files."  
+	echo "     Just copy first file from other directory"
+	echo "     and modify.  It is sufficient to change"
+	echo "     _igrd_, and _jgrd_ in define.h"
+	echo "3. for DOM_IGRDxJGRD_HKMkm_PROJ.h refer to other domain"
+	echo "     specification files. Use prmap to plot the area"
+	echo "     using grads"
+	echo "4. ./install again"
+	rm out.$$
+	exit
+fi
+MODEL_DEFINE=`sed -n "${num}p" out.$$`
+rm out.$$
+eval res_num_$count=$num
+res_numx=\$res_num_$count
+res_numx=`eval echo $res_numx`
+if [ -z "$res_numx" ] ; then
+	eval res_num_$count=$res_num_existx
+fi
+res_numx=\$res_num_$count
+res_numx=`eval echo $res_numx`
+eval res_$count=$MODEL_DEFINE

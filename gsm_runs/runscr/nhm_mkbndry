@@ -1,0 +1,113 @@
+#!/bin/sh
+#
+#make boundary condition
+#
+PROG=nhm_make_uvptq_grads
+#
+read  NX NY NPROJC DX DY SLAT SLON FLATC FLONC XI XJ XLA XLON < domain.txt
+echo 'NX NY NPROJC DX DY SLAT SLON FLATC FLONC XI XJ XLA XLON'
+echo $NX $NY $NPROJC $DX $DY $SLAT $SLON $FLATC $FLONC $XI $XJ $XLA $XLON
+read HOME  < HOME.card
+read RESULTS  < RESULTS.card
+rm -f fort.*
+MODSG=/rhome/yeong/test/svrtest/gsm/bin
+ln -fs ./rsm_location          fort.72
+ln -fs ./rsm3d-6h.dat          fort.11
+ln -fs ./rsm3d-6h.ctl          fort.31
+#
+ln -fs  ./rsm2d-6h.dat         fort.13
+ln -fs  ./rsm2d-6h.ctl         fort.33
+#
+#  const 
+#
+ln -fs  ./org.rsm              fort.14
+ln -fs  ./rsm_geopt.ctl        fort.30
+ln -fs  ./rsm_geopt.dat        fort.10
+ln -fs  ./soildep_veg_rsm.ctl  fort.35
+ln -fs  ./soildep_veg_rsm.dr   fort.15
+#
+#*******  prepare for MJ-SiB **************
+#
+cp ./soildep_veg_rsm.ctl  ./sibveg_o_cut.ctl
+cp ./soildep_veg_rsm.dr   ./sibveg_o_cut.dat
+#
+ln -fs  ./sibveg_o_cut.dat     fort.38
+ln -fs  ./sibveg_o_cut.ctl     fort.58
+#
+cp  ./rsm2d-6h.ctl ./sibgrads_o_6hr.ctl
+cp  ./rsm2d-6h.dat ./sibgrads_o_6hr.dr
+#
+ln -fs ./sibgrads_o_6hr.dr     fort.25
+ln -fs ./sibgrads_o_6hr.ctl    fort.45
+#
+ln -fs  ./GLCC-SiB.rsm         fort.29
+#
+cat << EOF $PROG.parm
+ &namchki
+  md_draw=0, i_c=3, j_c=3, idraw_int=1
+ &end
+ &namnhmi
+  nx=-1, ny=-1, nz=-1, sloni=-1.0, slati=-1.0, iwdth=10, imerg=10,
+  grmax=0.15, iwdth2=0, imerg2=0
+ &end
+ &namgrdi
+  dxi=$DX, dx1i=$DX, dx2i=$DX, ix1i=10, ix2i=20,
+  dyi=$DY, dy1i=$DY, dy2i=$DY, iy1i=10, iy2i=20,
+  dzi=904.0, dz1i=  40., dz2i=904., iz1i=50, iz2i=50
+ &end
+ &namnest
+  ktst=0, kten=72, ktdel=6, 
+  idatei(1)=1999, idatei(2)=07, idatei(3)=19, idatei(4)=0, idatei(5)=0,
+  ktadd=0
+ &end
+ &namsib
+  iflag_sib=-2, iflag_depth=1, iflag_grads_sib_rank=2, iflag_ptgrd_bnd=1
+ &end
+ &namreso
+  T=1000
+ &end
+    1        0.000000000000000    0.100000000000000E+01
+    2        0.000000000000000    0.990000009536743E+00
+    3        0.000000000000000    0.973999977111816E+00
+    4        0.000000000000000    0.953999996185303E+00
+    5        0.000000000000000    0.930000007152557E+00
+    6        0.000000000000000    0.901000022888184E+00
+    7        0.000000000000000    0.865999996662140E+00
+    8        0.000000000000000    0.824999988079071E+00
+    9        0.000000000000000    0.777000010013580E+00
+   10        0.000000000000000    0.722999989986420E+00
+   11        0.000000000000000    0.663999974727631E+00
+   12        0.000000000000000    0.601000010967255E+00
+   13        0.000000000000000    0.535000026226044E+00
+   14        0.000000000000000    0.467999994754791E+00
+   15        0.000000000000000    0.402999997138977E+00
+   16        0.000000000000000    0.340999990701675E+00
+   17        0.000000000000000    0.284000009298325E+00
+   18        0.000000000000000    0.232999995350838E+00
+   19        0.000000000000000    0.187999993562698E+00
+   20        0.000000000000000    0.149000003933907E+00
+   21        0.000000000000000    0.115999996662140E+00
+   22        0.000000000000000    0.890000015497208E-01
+   23        0.000000000000000    0.670000016689301E-01
+   24        0.000000000000000    0.489999987185001E-01
+   25        0.000000000000000    0.340000018477440E-01
+   26        0.000000000000000    0.219999998807907E-01
+   27        0.000000000000000    0.130000002682209E-01
+   28        0.000000000000000    0.600000005215406E-02
+   29        0.000000000000000    0.000000000000000E+00
+EOF
+#
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/$PROG.x $PROG.x
+./$PROG.x  <$PROG.parm 1>$PROG.out 2>&1
+if [ ! -d ./uvptq ] ;then
+	mkdir ./uvptq
+fi
+# 
+mv fort.20 ./uvptq/org.data
+mv fort.21 ./uvptq/uvptq.data
+mv fort.22 ./uvptq/ptgrd.data
+#
+mv fort.19 ./uvptq/GLCC-SiB_rsm_mod
+mv fort.26 ./uvptq/sibini_rsm.data
+mv fort.39 ./uvptq/rkind_bnd.data
+#

@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+PROG=eddrib
+rm prepdrib 2>/dev/null
+if [ @MACHINE@ = cray -o @MACHINE@ = t90 -o @MACHINE@ = t3e ] ; then
+	assign -R
+	assign -a out.bufr -Fcos @FTNID@20
+	assign -a prepdrib -Fcos @FTNID@50
+else
+	rm -f @FTNID@[0-9]* 2>/dev/null
+	ln -fs out.bufr  @FTNID@20
+	ln -fs prepdrib  @FTNID@50
+fi
+if [ @MACHINE@ = cray -o @MACHINE@ = t90 -o @MACHINE@ = t3e ] ; then
+	NCPUS=1
+	export NCPUS
+fi
+rm -f $PROG.x
+ln -fs @SRCS_DIR@/bin/${PROG}.x $PROG.x
+./$PROG.x 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+  echo "`date` $0: Execution failed." >>ERROR.out
+  exit 8
+fi
+if [ @MACHINE@ != cray -a @MACHINE@ != t90 -o @MACHINE@ != t3e ] ; then
+	rm -f @FTNID@[0-9]* 2>/dev/null
+fi
+cp prepdrib out.bufr

@@ -1,0 +1,41 @@
+#!/bin/sh
+set -x
+#
+#  Pre-proccess for SCM 
+#
+#  $1 is starting date
+#  $2 is ending date
+#  $3 is output sigma file name
+#  $4 is output sfc file name
+#
+STIME=$1
+ETIME=$2
+OUT_SIG_FILE=$3
+OUT_SFC_FILE=$4
+#
+PROG=prescm
+cat >$PROG.parm <<EOF
+ &NAMTIME
+  STIME=$STIME, ETIME=$ETIME,
+ &END
+EOF
+#
+#
+#  Execute forecast
+#
+rm -f fort.[0-9]* 2>/dev/null
+if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+        assign -R
+fi
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/orogrd.smth              fort.24
+rm -f $PROG.x
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/${PROG}.x $PROG.x
+./$PROG.x < $PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+rm -f fort.[0-9]*
+mv scmini.ft00 $OUT_SIG_FILE
+mv sfcini.ft00 $OUT_SFC_FILE
+exit 0

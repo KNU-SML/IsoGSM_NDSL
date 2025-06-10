@@ -1,0 +1,41 @@
+#!/bin/sh
+#PBS -l nodes=1:ppn=36
+ cd \$PBS_O_WORKDIR
+ export LANG=C
+#
+ulimit -s unlimited
+#
+set -ax
+#
+# this script makes 48 hour coupled integration of GSM and RSM starting from an example initial
+# condition. ideal for first testing the system on a new mpi computer system.
+#
+# Note that this is an mpi2 execution of two independent executable, but communication will
+# take place between the two executables during the integration.
+#
+# If mpi2 is not installed, this script does not work.
+#
+# ---------------  user changeable parameters ------------------------
+#
+# Change the following variable if you are running separate experiments
+# from the same directory
+#
+RUNNAME=ROMS_000
+#
+mkdir $RUNNAME
+cd $RUNNAME
+#
+ROMS_NPES=36
+#
+#  prepare for rsm execution
+#
+/rhome/yeong/test/svrtest/gsm_runs/runscr/preproms
+#
+#  Execute forecast
+#
+/rhome/yeong/test/svrtest/gsm_runs/runscr/roms 
+#
+if [ linux = mac -a mpi = mpi ] ; then
+        lamclean
+        lamhalt
+fi

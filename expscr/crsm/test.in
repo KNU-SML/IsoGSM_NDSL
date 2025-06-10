@@ -1,0 +1,385 @@
+#insert-HEADER
+set -ax
+#
+#  Downscaling with observed boundary condition
+#
+# ---------------  User changeable parameters  -----------------
+#
+# run directory name
+#
+RUNNAME=C_000
+#
+#  starting and ending base field forecast hour
+#
+FHS=0
+FHE=48
+#
+#   rsm domain and resolution specification
+# 
+#insert-domainspec
+#
+#   coarse resolution forcing domain and resolution specification
+# 
+#insert-c_domainspec
+#
+#  specification of initial condition
+#
+INITIAL_SIG_PLATFORM=
+INITIAL_SIG_FTP=cp
+INITIAL_SIG=/net/raid1/kana/namip-long/R40/1990/r_sigit.ft00
+INITIAL_SFC=/net/raid1/kana/namip-long/R40/1990/r_sfc.ft00
+INPUT_RESOLUTION=t@JCAP@k@LEVS@
+INITIAL_SFC_FILE_TYPE=osu2
+#
+#  Base field analysis sigma files
+#
+BASE_SIG_PLATFORM=
+BASE_SIG_FTP=ln
+BASE_SIG=/net/raid1/kana/namip-long/R40/1990/r_sigit.ft\$FH
+BASE_RESOLUTION=t@JCAP@k@LEVS@
+#
+# sst/ice/snow
+#
+SST_PLATFORM=tsuzumi.ucsd.edu
+SST_FTP=sftp
+SST_ANL=/raid4/kana/sfcanl/\$YYYY/sst.grib
+SST_ANL_T0=/raid4/kana/sfcanl/\$YYYY/sst.grib
+#
+ICE_PLATFORM=tsuzumi.ucsd.edu
+ICE_FTP=sftp
+ICE_ANL=/raid4/kana/sfcanl/\$YYYY/ice.grib
+ICE_ANL_T0=/raid4/kana/sfcanl/\$YYYY/ice.grib
+#
+SNO_PLATFORM=
+SNO_FTP=
+SNO_ANL=
+SNO_ANL_T0=
+SCV_PLATFORM=
+SCV_FTP=
+SCV_ANL=
+SCV_ANL_T0=
+#
+#  output for archive
+#
+ARCHIVE_PLATFORM=
+ARCHIVE_FTP_PROTOCOL=
+ARCHIVE_DIR=
+#
+#  rfcst control statement
+#
+#  INCHOUR is forecast hour by one rfcst execution
+#
+DELTAT_REG=120
+NESTING_HOUR=6
+INCHOUR=24
+INTSFCX=24
+SWHR_REG=1
+LWHR_REG=1
+FCST_RESTART=yes
+INTPOST=6
+INTPGB=$INTPOST
+INTRESTART=24
+#
+#  --------- below for expert only ----------------------------------
+#
+#  choice of archive variables
+#
+FTP_R_SIGIT=yes
+FTP_R_SIGITDT=yes
+FTP_R_SFC=no
+FTP_R_PGB=yes
+FTP_R_FLX=no
+FTP_R_FCSTOUT=no
+FTP_R_EXTVARS=no
+FTP_R_DIA=no
+export FTP_R_SIGIT FTP_R_SIGITDT FTP_R_SFC FTP_R_FLX FTP_R_PGB \
+       FTP_R_FCSTOUT FTP_R_EXTVARS FTP_R_DIA
+#
+#  by changing the following, you can keep the files
+#
+FILES_TO_BE_KEPT='r_sigit r_pgb'
+#FILES_TO_BE_KEPT='r_pgb r_extvars'
+export FILES_TO_BE_KEPT
+#
+#  you can specify any grib file for averaging
+#
+FILES_TO_BE_AVERAGED='r_pgb'
+export FILES_TO_BE_AVERAGED
+#
+# CHUNK_QSUB=yes to execute the integration piece meal to avoid
+# error exit due to time limit.  Do not forget to use the correct
+# script name to be resubmit
+# name
+#
+CHUNK_QSUB=no
+if [ $CHUNK_QSUB = yes ] ; then
+	SUBMIT_SCRIPT=@RUNSCR_DIR@/../csim
+	SUBMIT=@MPISUBMIT@
+	YYYY_INC=1
+fi
+#
+# You may modify EXPDIR to /tmp directory and keep this
+# scripts on your permanent disk.
+#
+EXPDIR=@RUNS_DIR@/$RUNNAME
+#
+DELETE_BASE=yes
+#
+# -------  do not change below  -------------------------------------
+#
+mkdir -p $EXPDIR 2>/dev/null
+scrnam=`echo $0 | sed 's?.*/??g'`
+cp $0 $EXPDIR/0LOG.$scrnam
+ls -l @MODEL_DIR@/bin >$EXPDIR/0LOG.bindates
+#
+FCST_NPES=@NPES@
+#
+LIST_OF_FILES='r_sigit r_sigidt r_sfc r_flx r_pgb r_fcstout r_extvars r_dia'
+export LIST_OF_FILES
+#
+# chain qsub control
+#
+FH_INC=720
+if [ $CHUNK_QSUB = yes ] ; then
+  fhe=`expr $fh + $FH_INC`
+fi
+#
+cd $EXPDIR
+#
+# Regional domain specification (parm data to be used by coldstart
+# as well as several other scripts later).
+#
+cat >rsm.parm <<EOF
+ &NAMLOC
+ RPROJ    = $RPROJ,
+ RTRUTH   = $RTRUTH,
+ RORIENT  = $RORIENT,
+ RDELX    = $RDELX,
+ RDELY    = $RDELY,
+ RCENLAT  = $RCENLAT,
+ RCENLON  = $RCENLON,
+ RLFTGRD  = $RLFTGRD,
+ RBTMGRD  = $RBTMGRD,
+ CPROJ    = $CPROJ,
+ CTRUTH   = $CTRUTH,
+ CORIENT  = $CORIENT,
+ CDELX    = $CDELX,
+ CDELY    = $CDELY,
+ CCENLAT  = $CCENLAT,
+ CCENLON  = $CCENLON,
+ CLFTGRD  = $CLFTGRD,
+ CBTMGRD  = $CBTMGRD,
+/
+EOF
+#
+#  refresh log file
+#
+rm ERROR.out 2>/dev/null
+#
+#  rfcst forecast hour loop
+#
+EXECDIR=$EXPDIR
+mkdir -p $EXECDIR 2>/dev/null
+cd $EXECDIR
+echo "`date` $0: started" >>ERROR.out
+if [ -s r_sigit -a -s r_sigitdt -a -s r_sfci -a $FCST_RESTART = yes ] ; then
+	h=`@LIBS_DIR@/etc/fhour r_sigit` || exit 8
+else
+	h=$FHS
+	#
+	#   fetch base field initial condition sig and sfc files
+	#
+	@RUNSCR_DIR@/fetchfile  \
+			$INITIAL_SIG ./initial_sig \
+			$INITIAL_SIG_FTP $INITIAL_SIG_PLATFORM || exit 8
+	@RUNSCR_DIR@/fetchfile  \
+			$INITIAL_SFC ./initial_sfc \
+			$INITIAL_SIG_FTP $INITIAL_SIG_PLATFORM || exit 8
+	FILE_FORMAT=bin
+	# 
+	#  Convert to native format
+	#
+	cigrd1=`expr @CIGRD@ + 1`
+	cjgrd1=`expr @CJGRD@ + 1`
+	@LIBS_DIR@/etc/scnvrt rsm $INITIAL_SFC_FILE_TYPE \
+			@IJCAP@:$cigrd1:$cjgrd1:@ILEVS@ \
+			     -1:-1:-1:-1:0 \
+			     $FILE_FORMAT:bin \
+			     initial_sig:initial_sfc \
+     sigit:sfci || exit 8
+	# 
+	#  interpolate to regional grid
+	#
+	@RUNSCR_DIR@/r_inpg $INITIAL_SFC_FILE_TYPE \
+			sigit:sfci r_sigit:r_sfci || exit 8
+	cp r_sigit r_sigit.ft00
+	cp r_sfci r_sfc.ft00
+	cp r_sigit r_sigitdt
+	echo "Starting simulation for fhour=$h" >>ERROR.out
+	#
+	#  run sfc0
+	#
+	#  fetch fixed fields assuming that the files for verifying
+	#  dates are in one file.
+	#
+	#  get initial YYYY MM DD HH
+	#
+	@LIBS_DIR@/etc/date ./r_sigit >date.$$
+	read HH MM DD YYYY FHF <date.$$ ; rm date.$$
+	for fld in sst sno scv ice
+	do
+		FLD=`echo $fld | tr '[a-z]' '[A-Z]'`
+		anl_t0=\$${FLD}_ANL_T0
+		anl_t0=`eval echo $anl_t0`
+		anl_t0=`eval echo $anl_t0`
+		anl=\$${FLD}_ANL
+		anl=`eval echo $anl`
+		anl=`eval echo $anl`
+		ftp=\$${FLD}_FTP
+		ftp=`eval echo $ftp`
+		platform=\$${FLD}_PLATFORM
+		platform=`eval echo $platform`
+		if [ -n "$anl_t0" ] ; then
+			if [ ! -s ./$fld.grib ] ; then
+				if [ $ftp != ln ] ; then
+					@RUNSCR_DIR@/fetchfile  \
+						$anl ./$fld.grib \
+						$ftp $platform || exit 8
+						eval ${FLD}_GRB_T0=$EXECDIR/$fld.grib || exit 8
+				else
+					eval ${FLD}_GRB_T0=$anl_t0
+				fi
+			else
+				eval ${FLD}_GRB_T0=$EXECDIR/$fld.grib || exit 8
+			fi
+		else
+			eval ${FLD}_GRB_T0=
+		fi
+		if [ -n "$anl" ] ; then
+			if [ $ftp != ln ] ; then
+				@RUNSCR_DIR@/fetchfile  \
+					$anl ./$fld.grib \
+					$ftp $platform || exit 8
+					eval ${FLD}_GRB=$EXECDIR/$fld.grib || exit 8
+			else
+				eval ${FLD}_GRB=$anl
+			fi
+		else
+			eval ${FLD}_GRB=
+		fi
+	done
+	export SST_GRB_T0 SNO_GRB_T0 SCV_GRB_T0 ICE_GRB_T0
+	@RUNSCR_DIR@/rsfc0 r_sfci r_sfco $INITIAL_SFC_FILE_TYPE || exit 8
+	cp r_sfco r_sfci
+	export SST_GRB SNO_GRB SCV_GRB ICE_GRB
+fi
+#
+#  get YYYY MM DD HH
+#
+@LIBS_DIR@/etc/date ./r_sigit >date.$$
+read HH MM DD YYYY FHF <date.$$ ; rm date.$$
+# 
+#  forecast hour loop
+#
+#  link base field to the file name the rsm expects  
+#
+FHLEN=`expr $FHE - $h`
+while [ $h -le $FHE ] ; do
+	fh=0 
+	hx=`expr $h + $INCHOUR`
+	if [ $hx -gt $FHE ] ; then
+		hx=$FHE
+	fi
+	while [ $fh -le $INCHOUR ] ; do 
+		FH=`expr $fh + $h`
+		if [ $FH -lt 10 ] ; then
+			FH=0$FH
+		fi
+		base_sig=`eval echo $BASE_SIG`
+		@RUNSCR_DIR@/basefnam $base_sig
+		fh=`expr $fh + $NESTING_HOUR`
+	done
+	#
+	#  Execute forecast
+	#
+	@RUNSCR_DIR@/r_fcstparm $INCHOUR $FHE \
+				$DELTAT_REG $NESTING_HOUR $INTPOST $INTPGB $INTSFCX $INTRESTART || exit 8
+	@RUNSCR_DIR@/r_fcst $h $hx $INTPOST $INCHOUR || exit 8
+	#
+	#  post processing
+	#
+	if [ "@CATPGB@ " = DEFINED ] ; then
+		@LIBS_DIR@/etc/catpgb
+	fi
+	FTP_DIR=`eval echo $ARCHIVE_DIR`
+	FTP_PLATFORM=$ARCHIVE_PLATFORM
+	FTP_PROTOCOL=$ARCHIVE_FTP_PROTOCOL
+	export FTP_DIR FTP_PLATFORM FTP_PROTOCOL
+	@RUNSCR_DIR@/r_post non_batch $EXECDIR/$YYYY \
+				$YYYY:$MM:$DD:$HH:$h:$hx:$YYYY:$MM:$FHLEN:$FHE:$INTPOST || exit 8
+	#
+	cp r_sigit.ft$hx r_sigit || exit 8
+	cp r_sigitdt.ft$hx r_sigitdt || exit 8
+	cp r_sfc.ft$hx r_sfci || exit 8
+	#
+	#  Delete old short archive files
+	#
+	for file in $LIST_OF_FILES
+	do
+		rc=0
+		for filex in $FILES_TO_BE_KEPT
+		do
+			if [ $filex = $file ] ; then
+				rc=1
+			fi
+		done
+		if [ $rc -eq 1 ] ; then
+			continue
+		fi
+		rc=0
+		for filex in $FILES_TO_BE_AVERAGED
+		do
+			if [ $filex = $file ] ; then
+				rc=1
+			fi
+		done
+		if [ $rc -eq 1 ] ; then
+			continue
+		fi
+		if [ $file = r_flx ] ; then
+			continue
+		fi
+		@RUNSCR_DIR@/delfile $file $h $h $INTPOST || exit 8
+	done
+	#
+	# delete base or coarse grid boundary condition for $h
+	#
+	if [ "$DELETE_BASE" = yes ] ; then
+		while [ $fh -lt $INCHOUR ] ; do
+			fhx=`expr $fh + $h`
+			@LIBS_DIR@/etc/incdte $YYYY $MM $DD $HH $fhx  >dteout$$ || exit 8
+			read YYYYF  MMF  DDF  HHF  <dteout$$ ; rm dteout$$
+			rm base.$YYYYF$MMF$DDF$HHF
+			fh=`expr $fh + $NESTING_HOUR`
+		done
+	fi
+	#
+	h=$hx
+done
+#
+echo "`date` $0: ended" >>ERROR.out
+if [ $CHUNK_QSUB = yes ] ; then
+	if [ $fh -le $FHE  ] ; then
+		if [ -z "$SUBMIT" ] ; then
+			$SUBMIT_SCRIPT &
+		elif [ "$SUBMIT" = bsub ] ; then
+			$SUBMIT < $SUBMIT_SCRIPT
+		else
+			$SUBMIT $SUBMIT_SCRIPT
+		fi
+	else
+		echo "`date` $0: completed"
+	fi
+fi
+wait
+#

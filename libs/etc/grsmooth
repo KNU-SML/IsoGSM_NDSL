@@ -1,0 +1,244 @@
+#!/bin/sh
+set -x
+#
+#  regional model grib output lateral boundary smoother
+#
+if [ $# -eq 0 ] ; then
+	echo 'Usage: grsmooth [-s listfile] file'
+  echo 'file can be specified using grads % format'
+	echo "`date` $0: Wrong usage." >>ERROR.out
+	exit 8
+fi
+#
+#  -s file ... file name that contains file names to be averaged
+#
+dflag=
+#
+sarg=
+if [ "$1" = "-s" ] ; then
+	sarg=$2
+fi
+#
+if [ -z "$USER" ] ; then
+  user=$LOGNAME
+else
+  user=$USER
+fi
+#
+ifts=-999
+ifte=-999
+#
+dir=`echo $0 | sed 's?/[^/]*$??g'`
+currdir=`pwd`
+cd $dir 2>/dev/null
+GRSMOOTHDIR=`pwd`
+echo "GRSMOOTHDIR=$GRSMOOTHDIR"
+export GRSMOOTHDIR
+cd $currdir
+#
+tmp=/tmp
+if [ -n "$TMPDIR" ] ; then
+	tmp=$TMPDIR
+fi
+#
+if [ "$1" = "-s" ] ; then
+	mapsorc=
+else
+	mapsorc=$1
+fi
+#
+temp_outfile="./smooth.grib$$"
+#
+if [ -n "$mapsorc" ] ; then
+	hmaps=`echo $mapsorc | cut -c 1`
+	if [ "$hmaps" != '/' ] ; then
+		mapsorc=$currdir/$mapsorc
+	fi
+	#
+	#  Always run in /tmp
+	#
+	mapsx=`echo $mapsorc | sed 's%/[^/]*$%%g' | sed 's%^.*/%%g'`
+	rm smooth_data.[0-9] smooth_data.tmp smooth.data 2>/dev/null
+	#
+	n=0
+	for filenam in $mapsorc
+	do
+	#
+		DELIM=
+		for ii in '%' '#' '~' '@'
+		do
+			echo $filenam | grep "$ii" >/dev/null
+			rc=$?
+			if [ $rc -eq 0 ] ; then
+				DELIM="$ii"
+				break
+			fi
+		done
+		if [ -z "$DELIM" ] ; then
+			DELIM='%'
+		fi
+		export DELIM
+	#
+		hmaps=`echo $filenam | cut -c 1`
+		if [ "$hmaps" != '/' ] ; then
+			filenam=$curdir/$filenam
+		fi
+		echo $filenam | grep "$DELIM" >/dev/null
+		if [ $? -ne 0 -a ! -s  $filenam ] ; then
+			echo " Error!!!  $filenam empty."
+			echo "`date` $0: $filenam empty." >>ERROR.out
+			rm smooth_data.[0-9] smooth_data.tmp smooth.data 2>/dev/null
+			exit 8
+		fi
+		n=`expr $n + 1`
+		eval filenam$n=$filenam
+		shift
+	done
+	nfile=$n
+	#
+	echo ' '
+	fexist=no
+	#
+	cnt=0
+	ndln=1
+	for argus in $mapsorc
+	do
+		cnt=` expr $cnt + 1 `
+		ndln=`expr $ndln + 1`
+		fngrib=$argus
+		echo "$fngrib" >>smooth_data.1
+	#
+	#  Find file names of the grads wild card format
+	#
+		filenx="`echo "$fngrib" | sed "s/${DELIM}[ymdh]1/[0-9]/g"`"
+		filenx=`echo "$filenx" | sed "s/${DELIM}[ymdh]2/[0-9][0-9]/g"`
+		filenx=`echo "$filenx" | sed "s/${DELIM}[ymdh]3/[0-9][0-9][0-9]/g"`
+		filenx=`echo "$filenx" | sed "s/${DELIM}[ymdh]4/[0-9][0-9][0-9][0-9]/g"`
+		filen1=`echo "$filenx" | sed "s/${DELIM}f1/[0-9]/g"`
+		filen1=`echo "$filen1" | sed "s/${DELIM}f2/[0-9][0-9]/g"`
+		filen1=`echo "$filen1" | sed "s/${DELIM}f3/[0-9][0-9][0-9]/g"`
+		filen1=`echo "$filen1" | sed "s/${DELIM}f4/[0-9][0-9][0-9][0-9]/g"`
+		filen2=`echo "$filenx" | sed "s/${DELIM}f1/[0-9][0-9]/g"`
+		filen2=`echo "$filen2" | sed "s/${DELIM}f2/[0-9][0-9][0-9]/g"`
+		filen2=`echo "$filen2" | sed "s/${DELIM}f3/[0-9][0-9][0-9][0-9]/g"`
+		filen3=`echo "$filenx" | sed "s/${DELIM}f1/[0-9][0-9][0-9]/g"`
+		filen3=`echo "$filen3" | sed "s/${DELIM}f2/[0-9][0-9][0-9][0-9]/g"`
+		filen4=`echo "$filenx" | sed "s/${DELIM}f1/[0-9][0-9][0-9][0-9]/g"`
+	#
+		rm smooth_data.tmp 2>/dev/null
+		ccnt=0
+		cccc=0
+		nf=1
+		echo ' '
+		echo ' '
+		echo ' Searching file(s) of the form,' " $fngrib"
+		echo ' '
+		while [ $nf -le 4 ] ; do
+			filenm=`eval echo '\$filen'$nf`
+			if [ $nf -gt 1 ] ; then
+				nff=1
+				while [ $nff -le $nf ] ; do
+					if [ $nff -eq $nf ] ; then
+						nff=`expr $nff + 1`
+						continue
+					fi
+					filenx=`eval echo '\$filen'$nff`
+					if [ "$filenm" = "$filenx" ] ; then
+						nf=`expr $nf + 1`
+						continue 2
+					fi
+					nff=`expr $nff + 1`
+				done
+			fi
+	#
+			if [ "$filenm" != $fngrib ] ; then
+	#
+				cccx=0
+				for filen in $filenm
+				do
+					cccc=`expr $cccc + 1`
+					cccx=`expr $cccx + 1`
+					if [ -f $filen ] ; then
+	#					echo " $filen"
+						if [ -s $filen ] ; then
+							echo $filen >>smooth_data.tmp
+							ccnt=` expr $ccnt + 1 `
+							fexist=yes
+						else
+							echo " File $filen empty.  Skipped"
+							shift
+						fi
+					else
+						if [ $nf -eq 1 ] ; then
+							echo " Caution! File of the %f? type with matching ? not found."
+						fi
+					fi
+				done
+			else
+				if [ $nf -eq 1 ] ; then
+					echo " Searching file, $fngrib"
+				fi
+				if [ -s $filenm ] ; then
+	# 			echo " $filenm"
+					fexist=yes
+					ccnt=` expr $ccnt + 1 `
+					echo $filenm >>smooth_data.tmp
+				else
+					if [ $nf -eq 1 ] ; then
+						echo " File $filenm empty.  Skipped"
+					fi
+				fi
+			fi
+			nf=`expr $nf + 1`
+		done
+		echo " Number of Files found for this type=$ccnt"
+	done
+	#
+	if [ $fexist = no ] ; then
+		echo " All files are empty."
+		echo "`date` $0: All files are empty." >>ERROR.out
+		rm smooth_data.[0-9] smooth_data.tmp smooth.data 2>/dev/null
+		exit 8
+	fi
+	#
+	echo "$GRSMOOTHDIR/grib1.kpds5.vsn22" >smooth.data
+	echo "$GRSMOOTHDIR/grib1.kpds6.vsn21" >>smooth.data
+	nlines=`wc -l smooth_data.tmp | awk '{print $1}'`
+	echo $nlines >>smooth.data
+	for file in `cat smooth_data.tmp`
+	do
+		echo $file >>smooth.data
+	done
+	#
+else  #  file name list given by a file
+	#
+	#  Always in /tmp
+	#
+	listfile=$sarg
+	mapsx=`echo $mapsorc | sed 's%/[^/]*$%%g' | sed 's%^.*/%%g'`
+	hmaps=`echo $listfile | cut -c 1`
+	if [ "$hmaps" != '/' ] ; then
+		listfile=$currdir/$listfile
+	fi
+	rm smooth_data.[0-9] smooth_data.tmp smooth.data 2>/dev/null
+	echo "$GRSMOOTHDIR/grib1.kpds5.vsn22" >smooth.data
+	echo "$GRSMOOTHDIR/grib1.kpds6.vsn21" >>smooth.data
+	nlines=`wc -l $listfile | awk '{print $1}'`
+	echo $nlines >>smooth.data
+	cat $listfile >>smooth.data
+fi
+#
+unlimit
+GRSMOOTH=grsmooth
+$GRSMOOTHDIR/$GRSMOOTH.x <smooth.data
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+#
+ls -l $temp_outfile
+#
+head=$currdir
+#
+rm smooth?data.* 2>/dev/null
+exit 0

@@ -1,0 +1,92 @@
+#!/bin/sh
+count=1
+#
+#  idendify coupling
+#
+echo model=$model
+ncolon=`echo $model | sed 's/[^:]//g' | wc -L`
+ncomp=`expr $ncolon + 1`
+if [ $ncomp -gt 1 ] ; then
+	cnt=1
+	while [ $cnt -le $ncomp ] ; do
+		if [ $cnt -gt 1 -a $cnt -lt $ncomp ] ; then
+			cntp1=`expr $cnt + 1`
+			cntm1=`expr $cnt \- 1`
+			eval COUPLE_WITH_$cnt=`echo $model | cut -d":" -f$cntm1`:\
+				`echo $model | cut -d":" -f$cntp1`
+		elif [ $cnt -eq 1 ] ; then
+			eval COUPLE_WITH_$cnt=`echo $model | cut -d":" -f2`
+		elif [ $cnt -eq $ncomp ] ; then
+			cntm1=`expr $cnt \- 1`
+			eval COUPLE_WITH_$cnt=`echo $model | cut -d":" -f$cntm1`
+		fi
+		cnt=`expr $cnt + 1`
+	done
+else
+	COUPLE_WITH=
+fi
+#
+srcs_dir_components=
+count=1
+RUNSCRIPT=`echo $runscript | tr "[a-z]" "[A-Z]"`
+for modelx in `echo $model | sed 's/:/ /g'`
+do
+	cd $currdir
+	srco=\$srcons_$count
+	srco=`eval echo $srco`
+	if [ "$srco" != s ] ; then
+		srcs_dirx=\$srcs_dir_$count
+		srcs_dirx=`eval echo $srcs_dirx`
+		ncpusx=\$ncpus_$count
+		ncpusx=`eval echo $ncpusx`
+		npesx=\$npes_$count
+		npesx=`eval echo $npesx`
+		resx=\$res_$count
+		resx=`eval echo $resx`
+		if [ $count = 1 ] ; then
+			srcs_dir_components=$currdir/$srcs_dirx
+		else
+			srcs_dir_components=$srcs_dir_components:$currdir/$srcs_dirx
+		fi
+		mkdir $srcs_dirx 2>/dev/null
+		cd $srcs_dirx
+		MODELX=`echo $modelx | tr "[a-z]" "[A-Z]"`
+		echo cvs co $arg SRCS_$MODELX
+		if [ $modelx = roms -o $modelx = nhm ] ; then
+			cd ../
+		fi
+		cvs co $arg SRCS_$MODELX
+		if [ $modelx = nhm ] ; then
+			rmdir $srcs_dirx
+			rm nhm 2>/dev/null
+			ln -fs Nhm nhm
+		fi
+		if [ $modelx = roms -o $modelx = nhm ] ; then
+			cd $srcs_dirx
+		fi
+		if [ $modelx = roms ] ; then
+			cvs co $arg SRCS_SUB_$MODELX
+		fi
+#
+#  edit define.h for enable options
+#
+		../instscr/defedit
+#
+#  edit configure-model
+#
+		COUPLE_WITH=\$COUPLE_WITH_$count
+		COUPLE_WITH=`eval echo $COUPLE_WITH`
+		sed "s%^LIBS_DIR=.*%LIBS_DIR=$currdir/$libs_dir%g
+		s/^MODEL=.*/MODEL=$modelx/g
+		s%^MODEL_DEFINE=.*%MODEL_DEFINE=$currdir/def/def_$modelx/$resx%g
+		s/^MARCH=.*/MARCH=$march/g
+		s/^NCPUS=.*/NCPUS=$ncpusx/g
+		s/^COUPLE_WITH=.*/COUPLE_WITH=$COUPLE_WITH/g
+		s/^NPES=.*/NPES=$npesx/g
+		s%^ROMS_APPLICATION=.*%ROMS_APPLICATION=$RUNSCRIPT%g" configure-model >tmp.$$
+		mv tmp.$$ configure-model
+		chmod u+x configure-model
+	fi
+	cd $currdir
+	count=`expr $count + 1`
+done

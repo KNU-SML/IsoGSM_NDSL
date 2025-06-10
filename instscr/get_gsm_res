@@ -1,0 +1,54 @@
+#!/bin/sh
+if [ -z "$model_res_area" ] ; then
+	res_num_existx=\$res_num_exist_$count
+	res_num_existx=`eval echo $res_num_existx`
+	if [ -z "$res_num_existx" ] ; then
+		if [ "$runscript" = gsmrt ] ; then
+			res_num_existx=4
+		else
+			res_num_existx=8
+		fi
+	fi
+fi
+ls -1d ./def/def_gsm/gsm*  | sed 's%.*/%%g' >out.$$
+nn=`wc -l out.$$ | awk '{print $1}'`
+if [ "$continue" != yes ] ; then
+	echo " "
+	echo "Model resolution specification"
+	n=1
+	while [ $n -le $nn ] ; do
+		echo "($n) `sed -n "$n"p out.$$`"
+		n=`expr $n + 1`
+	done
+	echo " "
+	echo "Type the number associated with your model dimension specification."
+	echo -n "If there is no choice available, type 999 [return=$res_num_existx]==>"
+	read num
+else
+	num=
+fi
+if [ -z "$num" ] ; then
+	num=$res_num_existx
+elif [ "$num" -eq 999 ] ; then
+	echo "1. create gsmGRESkVRES directory in def_gsm"
+	echo "  where GRES is global model dimension (e.g. 62)"
+	echo "        VRES is number of levels in the vertical (e.g. 28)"
+	echo "2. In that directory, create define.h, modlsigs.h and"
+	echo "     postplevs.h.  Just copy them from other directory"
+	echo "     and modify.  It is usually sufficient to change"
+	echo "     _jcap_, _lonf_ and _latg_ values in define.h"
+	echo "3. ./install again"
+	rm out.$$
+	exit
+fi
+MODEL_DEFINE=`sed -n "${num}p" out.$$`
+rm out.$$
+eval res_num_$count=$num
+res_numx=\$res_num_$count
+res_numx=`eval echo $res_numx`
+if [ -z "$res_numx" ] ; then
+	eval res_num_$count=$res_num_existx
+fi
+res_numx=\$res_num_$count
+res_numx=`eval echo $res_numx`
+eval res_$count=$MODEL_DEFINE

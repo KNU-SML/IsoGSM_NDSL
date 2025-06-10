@@ -1,0 +1,14 @@
+#!/bin/sh
+cd $currdir
+if [ "$skip_libs" != yes ] ; then
+	cd $currdir
+	if [ "$libons" != s ] ; then
+		cd $libs_dir
+		echo " "
+		echo "Executing configure-libs"
+		./configure-libs || exit 8
+		make || exit 8
+		echo "Finished making library"
+	fi
+fi
+cd $currdir

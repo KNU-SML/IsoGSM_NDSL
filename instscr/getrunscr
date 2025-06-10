@@ -1,0 +1,33 @@
+#!/bin/sh
+if [ "$couple" = yes ] ; then
+	mdl=cpl
+else
+	mdl=$model
+fi
+runscript_exist=
+if [ -s .hist ] ; then
+	runscript_exist=`grep "^runscript=" .hist | cut -d"=" -f2`
+fi
+if [ -z "$runscript_exist" ] ; then
+	runscript_exist=test
+fi
+if [ "$continue" != yes ] ; then
+	scrlist=\$${mdl}_script_list
+	scrlist=`eval echo $scrlist`
+	echo ' '
+	echo 'Choice of run script:'
+	echo "$mdl: Which script do you want to run?"
+	echo -n "$scrlist [return=$runscript_exist]==>"
+	read runscript
+fi
+if [ -z "$runscript" ] ; then
+	runscript=$runscript_exist
+fi
+grep runscript= .hist >/dev/null 2>/dev/null
+rc=$?
+sed "s/runscript=.*/runscript=$runscript/g" .hist >tmp.$$
+if [ $rc -eq 0 ] ; then
+	mv tmp.$$ .hist	
+else
+	echo runscript=$runscript >>.hist
+fi

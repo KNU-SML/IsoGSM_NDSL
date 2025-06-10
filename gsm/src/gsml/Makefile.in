@@ -1,0 +1,53 @@
+LIB = gsml.a
+
+OBJS = @OBJS_GSML@
+
+SRCS = ${OBJS:o=F}
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @MODEL_SINGLE_F77@
+FORT_FLAGS = @MODEL_SINGLE_FORT_FLAGS@
+LOAD_FLAGS = @MODEL_SINGLE_LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIBS_DIR@/lib
+INSTALL_DIR = @MODEL_DIR@/bin
+JCAP = @JCAP@
+LEVS = @LEVS@
+NPES = @NPES@
+
+${LIB} : ${SRCS} ${OBJS}
+	${AR} -r $@ ${OBJS}
+	${CP} $@ ${INSTALL_DIR}
+	${CP} $@ ${INSTALL_DIR}/gsml_t${JCAP}k${LEVS}.a ; ${RM} -f ${INSTALL_DIR}/gsml.a ; \
+	ln -fs ${INSTALL_DIR}/gsml_t${JCAP}k${LEVS}.a ${INSTALL_DIR}/gsml.a
+	${CP} $@ ${INSTALL_DIR}
+
+.SUFFIXES : .o .f .F
+
+.F.f :
+	sed '/<paramodel.h>/{G;s/$$/#undef MP/;}' $*.F >TEMP.F
+	${CPP} -P ${INCLUDE_DIR} TEMP.F >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f ; rm $*.i TEMP.F
+
+.F.o :
+	sed '/<paramodel.h>/{G;s/$$/#undef MP/;}' $*.F >TEMP.F
+	${CPP} -P ${INCLUDE_DIR} TEMP.F >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f ; rm $*.i TEMP.F
+	${F77} ${FORT_FLAGS} -c $*.f
+.f.o :
+	${F77} ${FORT_FLAGS} -c $*.f
+
+clean :
+	- ${RM} -f *.f *.o .mod core *.a
+
+dist_clean :
+	- ${RM} -f *.f *.o *.mod *.a core Makefile
+	- ${RM} -rf rii_files

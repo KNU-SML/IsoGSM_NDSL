@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+set -x
+RorC=$1
+if [ -z "$RorC" ] ; then
+	RorC=R
+fi
+#
+cat >prmap.naml <<EOF
+ &namloc
+ IGRD1=@IGRD@
+ JGRD1=@JGRD@
+ RPROJ=@PROJ@
+ RTRUTH=@RTRUTH@
+ RORIENT=@RORIENT@
+ RDELX=@RDELX@
+ RDELY=@RDELY@
+ RCENLAT=@RCENLAT@
+ RCENLON=@RCENLON@
+ RLFTGRD=@RLFTGRD@
+ RBTMGRD=@RBTMGRD@
+ &end
+EOF
+#
+/rhome/yeong/test/svrtest/libs/etc/prmap.x <prmap.naml 2>stderr$$.prmap
+cc=$?
+if [ $cc -ne 0 ] ; then
+  echo ' prmap2 execution failed'
+  exit 8
+fi
+rm stderr$$.prmap
+gradsc -l -c "open prmap.ctl"

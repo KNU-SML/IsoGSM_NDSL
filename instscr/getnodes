@@ -1,0 +1,110 @@
+#!/bin/sh
+count=1
+for modelx in `echo $model | sed 's/:/ /g'`
+do
+	if [ -s .hist ] ; then
+		eval npes_$count=`grep "^npes_$count=" .hist | cut -d'=' -f2`
+		eval ncpus_$count=`grep "^ncpus_$count=" .hist | cut -d'=' -f2`
+	fi
+	npes_x=\$npes_$count
+	npes_x=`eval echo $npes_x`
+	if [ -z "$npes_x" ] ; then
+		eval npes_$count=4
+	fi
+	ncpus_x=\$ncpus_$count
+	ncpus_x=`eval echo $ncpus_x`
+	if [ -z "$ncpus_x" ] ; then
+		eval ncpus_$count=1
+	fi
+	count=`expr $count + 1`
+done
+#
+count=1
+for modelx in `echo $model | sed 's/:/ /g'`
+do
+	ncpusy=\$ncpus_$count
+	ncpusy=`eval echo $ncpusy`
+	npesy=\$npes_$count
+	npesy=`eval echo $npesy`
+	npesxy=$npesy
+	if [ "$march" = single ] ; then
+		eval npes_$count=1
+		eval ncpus_$count=1
+	elif [ "$march" = thread ] ; then
+		if [ "$continue" != yes ] ; then
+			echo " "
+			echo "Number of threads"
+			echo -n "$modelx: type number of thread to use [return=$ncpusy]==>"
+			read ncpus_$count
+		else
+			eval ncpus_$count=
+		fi
+		eval npes_$count=1
+		npesy=\$npes_$count
+		npesy=`eval echo $npesy`
+		ncpusy=\$ncpus_$count
+		ncpusy=`eval echo $ncpusy`
+		if [ -z "$ncpusy" ] ; then
+			eval ncpus_$count=$ncpusy
+		fi
+	elif [ "$march" = mpi ] ; then
+		if [ "$continue" != yes ] ; then
+			echo " "
+			echo "Number of pes"
+			echo -n "$modelx: type number of cpus to use [return=$npesxy]==>"
+			read npes_$count
+		else
+			eval npes_$count=
+		fi
+		npesy=\$npes_$count
+		npesy=`eval echo $npesy`
+		eval ncpus_$count=1
+		if [ -z "$npesy" ] ; then
+			eval npes_$count=$npesxy
+		fi
+	elif [ "$march" = hybrid ] ; then
+		if [ "$continue" != yes ] ; then
+			echo " "
+			echo "Number of threads"
+			echo -n "$modelx: type number of threads to use [return=$ncpusy]==>"
+			read ncpus_$count
+		else
+			eval ncpus_$count=
+		fi
+		ncpusy=\$ncpus_$count
+		ncpusy=`eval echo $ncpusy`
+		if [ -z "$ncpusy" ] ; then
+			eval ncpus_$count=$ncpusy
+		fi
+		if [ "$continue" != yes ] ; then
+			echo " "
+			echo "Number of cpus"
+			echo -n "$modelx: type number of cpus to use [return=$npesy]==>"
+			read npes_$count
+		else
+			eval npes_$count=
+		fi
+		npesy=\$npes_$count
+		npesy=`eval echo $npesy`
+		if [ -z $npesy ] ; then
+			eval npes_$count=`eval echo $npesy`
+		fi
+	fi
+	grep npes_$count= .hist >/dev/null 2>/dev/null
+	rc=$?
+	sed "s/npes_$count=.*/npes_$count=$npesy/g" .hist >tmp.$$
+	if [ $rc -eq 0 ] ; then
+		mv tmp.$$ .hist	
+	else
+		echo npes_$count=$npesy >>.hist
+	fi
+	grep ncpus_$count= .hist >/dev/null 2>/dev/null
+	rc=$?
+	sed "s/ncpus_$count=.*/ncpus_$count=$ncpusy/g" .hist >tmp.$$
+	if [ $rc -eq 0 ] ; then
+		mv tmp.$$ .hist	
+	else
+		echo ncpus_$count=$ncpusy >>.hist
+	fi
+	count=`expr $count + 1`
+done

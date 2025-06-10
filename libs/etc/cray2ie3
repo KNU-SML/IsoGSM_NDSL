@@ -1,0 +1,43 @@
+if [ $# -ne 2 ] ; then
+	echo 'Usage: cray2ie3 infile outfile'
+  echo "`date` $0: Usage error." >>ERROR.out
+	exit 8
+fi
+#
+dir=`echo $0 | sed 's?/[^/]*$??g'`
+currdir=`pwd`
+cd $dir
+ETC_DIR=`pwd`
+cd $currdir
+#
+FTNID=fort.
+#
+in=$1
+if [ ! -s $in ] ; then
+	echo "$in:  No such file"
+	echo "`date` $0: $in.  No such file." >>ERROR.out
+	exit 8
+fi
+out=$2
+#
+ln -fs $in ${FTNID}11
+ln -fs $out ${FTNID}51
+
+echo ' &namfl' >naml$$.data
+echo " FNAME='$in'" >>naml$$.data
+echo ' &END' >>naml$$.data
+#
+if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+  assign -R
+fi
+#
+NO_STOP_MESSAGE=true
+export NO_STOP_MESSAGE
+#
+$ETC_DIR/cray2ie3.x <naml$$.data 2>stderr$$.cray2ie3
+if [ $? -ne 0 ] ; then
+	echo " $0: Execution failed"
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+rm naml$$.data stderr$$.cray2ie3

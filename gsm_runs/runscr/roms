@@ -1,0 +1,25 @@
+#!/bin/sh
+set -ax
+#
+PROG=roms
+#
+# create input parameter file
+#
+ln -fs /rhome/yeong/test/svrtest/gsm_runs/runscr/roms.parm .
+#
+#  Execute roms
+#
+hx=00
+here_dir=`pwd`
+if [ mpi = mpi -o mpi = hybrid ] ; then
+	. /rhome/yeong/test/svrtest/gsm_runs/runscr/mpisub $PROG.x:$ROMS_NPES:roms.parm
+	cc=$?
+else
+	./$PROG.x 1>${PROG}.out < roms.parm 2>&1
+	cc=$?
+fi
+if [ $cc -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+exit 0

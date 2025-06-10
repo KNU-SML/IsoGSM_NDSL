@@ -1,0 +1,77 @@
+#!/bin/sh
+#
+YYYY=$1
+MM=$2
+DD=$3
+OBS_PREC_FILE=$4
+WGRIB=$5
+ARCHIVE_DIR=$6
+#
+PROG=precipadj
+nnum=`grep -n "$MM$DD" @LIBS_DIR@/etc/pentads | cut -d':' -f1`
+nnumm=`expr $nnum - 1`
+pyyyy=$YYYY
+if [ $nnumm -le 0 ] ; then
+	nnumm=`grep -n "1231" @LIBS_DIR@/etc/pentads | cut -d':' -f1`
+	pyyyy=`expr $YYYY - 1`
+fi
+nams=`sed -n "$nnumm p" @LIBS_DIR@/etc/pentads | cut -d' ' -f1`
+namf=`sed -n "$nnumm p" @LIBS_DIR@/etc/pentads | sed 's/.* //g'`
+#
+MODEL_PREC=$ARCHIVE_DIR/$pyyyy/pentads/flx.ft06.$pyyyy${nams}00-$pyyyy${namf}18.grib
+if [ ! -s $MODEL_PREC ] ; then
+	echo `date` - $MODEL_PREC does not exist >>ERROR.out
+	exit 8
+fi
+#
+# convert OBS precip to binary
+#
+grep ":PRATE:" < $OBS_PREC_FILE.inv | grep ":D=$pyyyy$nams" | \
+	$WGRIB $OBS_PREC_FILE -i -o obs_prate$$ -ieee -s
+if [ ! -s obs_prate$$ -a $pyyyy -ge 1979 ] ; then
+	echo "obs_prate file empty"
+	echo `date` - obs_prate file empty >>ERROR.out
+	exit 8
+fi
+#
+# convert MODEL precip to binary
+#
+$WGRIB -v $MODEL_PREC | grep ":D=$pyyyy$nams" | \
+egrep "(PRATE|RUNOF|LAND)" | sort -t: -k5,6 | \
+$WGRIB $MODEL_PREC -i -o model_prate$$ -ieee -s
+if [ ! -s model_prate$$ ] ; then
+	echo "model_prate file empty"
+	echo `date` - model_prate file empty >>ERROR.out
+	exit 8
+fi
+#
+if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 -o @SYSTEM@ = t3e ] ; then
+	assign -R
+	assign -a sfco                                @FTNID@10
+	assign -a obs_prate$$   -Ff77 -Cascii -Nieee  @FTNID@11
+	assign -a model_prate$$ -Ff77 -Cascii -Nieee  @FTNID@12
+	assign -a sfc.adjusted                        @FTNID@51
+	assign -a precipadj.grib -s unblocked         @FTNID@52
+else
+	ln -fs sfco           @FTNID@10
+	ln -fs obs_prate$$    @FTNID@11
+	ln -fs model_prate$$  @FTNID@12
+	ln -fs sfc.adjusted   @FTNID@51
+	ln -fs precipadj.grib @FTNID@52
+fi
+if [ @SYSTEM@ = cray -o @SYSTEM@ = t90 -o @SYSTEM@ = t3e ] ; then
+	NCPUS=1
+	export NCPUS
+fi
+rm -f $PROG.x
+ln -fs @SRCS_DIR@/bin/${PROG}.x $PROG.x
+./$PROG.x 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+if [ @SYSTEM@ != cray -a @SYSTEM@ != t90 -a @SYSTEM@ != t3e ] ; then
+	rm -f @FTNID@[0-9]* 2>/dev/null
+fi
+rm obs_prate$$ model_prate$$
+mv sfc.adjusted sfco

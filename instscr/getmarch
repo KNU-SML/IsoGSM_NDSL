@@ -1,0 +1,41 @@
+#!/bin/sh
+count=1
+echo $model | grep ':' >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	count=2
+fi
+if [ -s .hist ] ; then
+	march_exist=`grep "^march_exist=" .hist | cut -d'=' -f2`
+fi
+if [ -z "$march_exist" ] ; then
+	march_exist=single
+fi
+#
+if [ $count -eq 1 ] ; then
+	if [ "$enable_mpi" = yes ] ; then
+		march=mpi
+	else
+		if [ "$continue" != yes ] ; then		
+			echo ' '
+			echo 'Machine architecture:'
+			echo -n "Type single/thread/mpi/hybrid [return=$march_exist]?==>"
+			read march
+			if [ -z "$march" ] ; then
+				march=$march_exist
+			fi
+		else
+			march=$march_exist
+		fi
+	fi
+else
+	march=mpi
+fi
+grep march_exist= .hist >/dev/null 2>/dev/null
+rc=$?
+sed "s/march_exist=.*/march_exist=$march/g" .hist >tmp.$$
+if [ $rc -eq 0 ] ; then
+	mv tmp.$$ .hist	
+else
+	echo march_exist=$march >>.hist
+fi
+MARCH=$march

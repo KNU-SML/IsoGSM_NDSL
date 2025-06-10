@@ -1,0 +1,245 @@
+#!/bin/sh
+#
+XLFRTEOPTS="namelist=old"
+export XLFRTEOPTS
+#
+#  This script template requires following edit variables to be defined
+#      %EXECSUBDIR% %YYYY% %MM% %DD% %HH% %FHE% %FHS% %INTSFCX% 
+#      %ENDHOUR% %INTPOST% %INTPOST% %PLATFORM% %FTPDIR%
+#      %YYYYS% %MMS% %DDS% %HHS% %YYYYE% %MME% %DDE% %HHE%
+#      @RUNSCR_DIR@'
+#      %FTP_SIG% %FTP_SFC% %FTP_ZNL% %FTP_FLX% %FTP_DIA% %FTP_KEN% 
+#      %FTP_PGB% %FTP_SGB% %FTP_FCSTOUT%
+#      %LIST_OF_FILES% %FILES_TO_BE_KEPT% %FILES_TO_BE_AVERAGED%
+#      %RMAVRG% %VARIANCE% %EXTVARS%
+#
+#    which should be defined in cpost.in
+#
+YYYYS=%YYYYS%
+MMS=%MMS%
+DDS=%DDS%
+HHS=%HHS%
+YYYYE=%YYYYE%
+MME=%MME%
+DDE=%DDE%
+HHE=%HHE%
+ENDHOUR=%ENDHOUR%
+EXTVARS=%EXTVARS%
+#
+#  obtain forecast hours for various ending dates
+#
+. @RUNSCR_DIR@/endfhrs
+#
+cd %EXECSUBDIR%
+if [ $? -ne 0 ] ; then
+  echo "`date` $0:cd to %EXECSUBDIR% failed" >> ERROR.out
+  exit 8
+fi
+#
+list_of_files='%LIST_OF_FILES%'
+files_to_be_kept='%FILES_TO_BE_KEPT%'
+files_to_be_averaged='%FILES_TO_BE_AVERAGED%'
+#
+ftp_sig=%FTP_SIG%
+ftp_sfc=%FTP_SFC%
+ftp_znl=%FTP_ZNL%
+ftp_flx=%FTP_FLX%
+ftp_dia=%FTP_DIA%
+ftp_ken=%FTP_KEN%
+ftp_pgb=%FTP_PGB%
+ftp_sgb=%FTP_SGB%
+ftp_fcstout=%FTP_FCSTOUT%
+ftp_extvars=%FTP_EXTVARS%
+#
+fhsp=`expr %FHS% + %INTPOST%`
+#
+# pgb
+#
+fh=`expr $fhsp + 0`
+if [ $fh -lt 10 ] ; then
+	fhc=0$fh
+else
+	fhc=$fh
+fi
+while [ -s pgb.ft$fhc -a $fh -le %FHE% ] ; do
+	fh=`expr $fh + %INTPOST%`
+	fhc=$fh
+done
+fhstart=$fh
+if [ $fhstart -le %FHE% ] ; then
+	if [ @DOPOST@ = yes ] ; then
+		@RUNSCR_DIR@/pgb $fhstart %FHE% %INTPOST% || exit 8
+	elif [ @CATPGB@ = yes ] ; then
+		@LIBS_DIR@/etc/catpgb
+	fi
+fi
+#
+if [ $EXTVARS = yes ] ; then
+	fh=`expr $fhsp + 0`
+	if [ $fh -lt 10 ] ; then
+		fhc=0$fh
+	else
+		fhc=$fh
+	fi
+	while [ -s extvars.ft$fhc -a $fh -le %FHE% ] ; do
+		fh=`expr $fh + %INTPOST%`
+		fhc=$fh
+	done
+	fhstart=$fh
+	if [ $fhstart -le %FHE% ] ; then
+		@RUNSCR_DIR@/extvars $fhstart %FHE% %INTPOST% || exit 8
+	fi
+fi
+#
+#  Daily file archive
+#
+for file in $list_of_files
+do
+	ftp=\$ftp_$file
+	ftp=`eval echo $ftp`
+	if [ $ftp = yes ] ; then
+		intvl=%INTPOST%
+		if [ $file = sfc ] ; then
+			intvl=%INTPOST%
+		fi
+		h=`expr %FHS% + 0`
+		if [ $h -ne 0 ] ; then
+			hp=`expr %FHS% + $intvl`
+		else
+			hp=0
+		fi
+		if [ -n "%PLATFORM%" ] ; then
+			@RUNSCR_DIR@/ftparch $file $hp %FHE% $intvl %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+		fi
+	fi
+done
+#
+#  Delete used sigma files
+#
+rc=0
+for filex in $files_to_be_kept
+do
+	if [ $filex = sig ] ; then
+		rc=1
+	fi
+done
+if [ $rc -eq 0 ] ; then
+	@RUNSCR_DIR@/delfile sig $fhsp %FHE% %INTSFCX%
+fi
+#
+#  Delete used extvars files
+#
+if [ $EXTVARS = yes ] ; then
+	rc=0
+	for filex in $files_to_be_kept
+	do
+		if [ $filex = extvars ] ; then
+			rc=1
+		fi
+	done
+	if [ $rc -eq 0 ] ; then
+		@RUNSCR_DIR@/delfile extvars $fhsp %FHE% %INTSFCX%
+	fi
+fi
+#
+#  averaging
+#
+#   compute starting and ending forecast hour for monthly averaging
+#     (MFHOUR_nn)
+#
+c=1
+while [ $c -le $MCOUNT ] ; do
+	x=\$MFHOUR_$c
+	x=`eval echo $x`
+	echo MFHOUR_$c=$x
+	c=`expr $c + 1`
+done
+#
+# skip first month for averaging
+#
+c=1
+#
+# if first month is less than 15 days, skip second month also
+#
+flen=`expr $MFHOUR_1 \/ 24`
+maxlen=15
+if [ $flen -le $maxlen ] ; then
+	c=2
+fi                                                  
+while [ $c -lt $MCOUNT ] ; do
+	c=`expr $c + 1`
+	fte=\$MFHOUR_$c
+	fte=`eval echo $fte`
+	if [ $fte -gt %FHS% -a $fte -le %FHE% ] ; then
+		echo 'Performing averaging'
+		cm=`expr $c - 1`
+		if [ $cm -eq 0 ] ; then
+			fts=0
+		else
+			fts=\$MFHOUR_$cm
+			fts=`eval echo $fts`
+		fi
+		@LIBS_DIR@/etc/incdte %YYYY% %MM% %DD% %HH% $fts >incdte.out$$
+		read yyyy mm dd hh <incdte.out$$
+		rm incdte.out$$
+		#
+		fh=`expr $fts + %INTSFCX%`
+		for file in $files_to_be_averaged
+		do
+			#
+			intvl=%INTPOST%
+			if [ $file = pgb ] ; then
+				intvl=%INTPOST%
+			fi
+			@RUNSCR_DIR@/average $file $fh $fte $intvl \
+				$file.$yyyy$mm.avrg.grib || exit 8
+			@LIBS_DIR@/etc/force_grib_date_mon \
+				./$file.$yyyy$mm.avrg.grib $yyyy${mm}0100 || exit 8
+			#
+			if [ $file = pgb -a %VARIANCE% = yes ] ; then
+				@RUNSCR_DIR@/variance $file $fh $fte $intvl \
+				$file.$yyyy$mm.variance.grib || exit 8
+				@LIBS_DIR@/etc/force_grib_date_mon \
+				./$file.$yyyy$mm.variance.grib \
+				$yyyy${mm}0100 || exit 8
+			fi
+			#
+			#  ftp
+			#
+			if [ -n "%PLATFORM%" ] ; then
+				@RUNSCR_DIR@/ftpavrg $file.$yyyy$mm.avrg.grib \
+							%RMAVRG% %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+				if [ $file = pgb -a %VARIANCE% = yes ] ; then
+					@RUNSCR_DIR@/ftpavrg $file.$yyyy$mm.variance.grib \
+							%RMAVRG% %FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+				fi
+			fi
+			#
+			#  Delete used individual files
+			#
+			rc=0
+			for filex in $files_to_be_kept
+			do
+				if [ $filex = $file ] ; then
+					rc=1
+				fi
+			done
+			if [ $rc -eq 0 ] ; then
+				@RUNSCR_DIR@/delfile $file $fh $fte $intvl
+			fi
+		done
+	else
+		continue
+	fi
+done
+#
+#  extvars processing
+#
+if [ $EXTVARS = yes ] ; then
+	if [ %FHE% -eq $ENDHOUR ] ; then
+		hhs=`expr %HHS% + 0`
+		inchour=`expr 24 - $hhs`
+		@RUNSCR_DIR@/extvarsput $inchour %ENDHOUR% %INTPOST% extvars.grib \
+				%FTPDIR% %PLATFORM% %FTP_PROTOCOL%
+	fi
+fi

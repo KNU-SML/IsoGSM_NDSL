@@ -1,0 +1,136 @@
+#!/bin/sh
+#PBS -l nodes=1:ppn=36
+ cd \$PBS_O_WORKDIR
+ export LANG=C
+#
+ulimit -s unlimited
+#
+set -ax
+#
+# this script makes 48 hour UNcoupled integration of RSM and RSM starting from 
+# an example initial condition. ideal for first testing the system on a new mpi 
+# computer system.
+#
+#  you need to run rsm first.  Make sure to choose the roms area the same as RSM.
+#
+# Note that this is an mpi2 execution of two independent executable, but 
+# communication will take place between the two executables during the integration.
+#
+# If mpi2 is not installed, this script does not work.
+#
+# ---------------  user changeable parameters ------------------------
+#
+# Change the following variable if you are running separate experiments
+# from the same directory
+#
+# To generate forcing netCDF file from RSM grib output, rsm output interval should 
+# be 24hr.
+#
+RUNNAME=ROMS_000
+#
+# RSM r_pgb direcotry
+#
+currdir=`pwd`
+RSM_FORCING_DIR=$currdir/../../rsm/rsm_runs/r_000
+#
+YYYY_start=1990
+MONTH_start=03
+DAY_start=09
+HOUR_start=00
+YYYY_end=1990
+MONTH_end=03
+DAY_end=11
+HOUR_end=00
+#
+#  ROMS output interval for restart, history and average
+#
+ROMS_NRST_DAY=1
+ROMS_NHIS_DAY=1
+ROMS_NAVG_DAY=1
+#
+RSM_HOUR=`/rhome/yeong/test/svrtest/libs/etc/inchour $YYYY_start $MONTH_start $DAY_start $HOUR_start \
+				$YYYY_end $MONTH_end $DAY_end $HOUR_end`
+RSM_SIMU_DAYS=`expr $RSM_HOUR \/ 24`
+#
+ROMS_DT=600
+#
+mkdir $RUNNAME
+cd $RUNNAME
+#
+ROMS_NPES=36
+#
+ROMS_NRST=`expr $ROMS_NRST_DAY \* 86400 \/ $ROMS_DT`
+ROMS_NHIS=`expr $ROMS_NHIS_DAY \* 86400 \/ $ROMS_DT`
+ROMS_NAVG=`expr $ROMS_NAVG_DAY \* 86400 \/ $ROMS_DT`
+ROMS_NTIMES=`expr $RSM_SIMU_DAYS \* 86400 \/ $ROMS_DT`
+#
+#  generate grid specification, initial and boundary files
+#
+#  firtsly, locate and fetch initial soda monthly average file
+#
+ln -fs /rhome/yeong/test/svrtest/libs/con/SODA-$YYYY_start$MONTH_start.nc init.$YYYY_start$MONTH_start$DAY_start$HOUR_start.ft00.nc
+#
+ln -fs init.$YYYY_start$MONTH_start$DAY_start$HOUR_start.ft00.nc init.in.nc
+ln -fs init.in.nc init-grd.in.nc
+ln -fs grid.nc init-grd.nc
+#
+/rhome/yeong/test/svrtest/gsm_runs/runscr/roms_preprocess $YYYY_start $MONTH_start || exit 8
+cp init.nc init.$YYYY_start$MONTH_start$DAY_start$HOUR_start.ft00
+#
+if [ -s ocean_rst.nc ] ; then
+	NRREC=0
+	LDEFOUT=T
+	cp ocean_rst.nc init.nc || exit 8
+else
+	NRREC=0
+	LDEFOUT=T
+	cp init.$YYYY_start$MONTH_start$DAY_start$HOUR_start.ft00 init.nc || exit 8
+fi
+#
+#  Genrate lateral boundary condition
+#
+/rhome/yeong/test/svrtest/gsm_runs/runscr/roms_boundary $YYYY_start $MONTH_start $YYYY_end $MONTH_end
+#
+# Generate forcing file
+#
+/rhome/yeong/test/svrtest/gsm_runs/runscr/mkforcing $RSM_FORCING_DIR $RSM_SIMU_DAYS || exit 8
+mv forc-rsm.nc forc-rsm.$YYYY_start$MONTH_start$DAY_start$HOUR_start-$YYYY_end$MONTH_end$DAY_end$HOUR_end.nc
+ln -fs forc-rsm.$YYYY_start$MONTH_start$DAY_start$HOUR_start-$YYYY_end$MONTH_end$DAY_end$HOUR_end.nc forc.nc || exit 8
+#
+#  prepare for rsm execution
+#
+/rhome/yeong/test/svrtest/gsm_runs/runscr/preproms || exit 8
+#
+/rhome/yeong/test/svrtest/gsm_runs/runscr/romsparm $ROMS_NTIMES $ROMS_DT $ROMS_NRST $ROMS_NHIS $ROMS_NAVG $NRREC || exit 8
+#
+#  Execute forecast
+#
+/rhome/yeong/test/svrtest/gsm_runs/runscr/roms  || exit 8
+#  rename the ocean_his as G-RSM
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/oceanhr.x oceanhr.x || exit 8
+#
+for file in ocean_his_*.nc
+do
+cat - > ncfile.txt << EOF 
+$file
+EOF
+  hour=`./oceanhr.x | awk '{print $1}'`
+  mv $file ocean_his.$YYYY_start$MONTH_start$DAY_start_$HOUR_start.ft$hour.nc
+done
+#  rename the ocean_avg as G-RSM
+for file in ocean_avg_*.nc
+do
+cat - > ncfile.txt << EOF
+$file
+EOF
+  hour=`./oceanhr.x | awk '{print $1}'`
+  hour=`expr $hour + $ROMS_NAVG_DAY \* 24 \/ 2`
+  if [ $hour != 0 ] ; then
+    mv $file ocean_avg.$YYYY_start$MONTH_start$DAY_start_$HOUR_start.ft$hour.nc
+  fi
+done
+#
+if [ linux = mac -a mpi = mpi ] ; then
+        lamclean
+        lamhalt
+fi

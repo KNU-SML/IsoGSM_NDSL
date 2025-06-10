@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+#  This script creates bourn shell script "scrvars" which defines variables in
+#  configure-scr script, and "scrvars.sed" file for sed.
+#
+echo $SRCS_DIR | grep ':' >/dev/null 2>/dev/null 
+if [ $? -eq 0 ] ; then
+	echo "SRCS_DIR=" >>scrvars
+	cnt=1
+	for dir in `echo $SRCS_DIR | sed 's/:/ /g'`
+	do
+		MODEL=`grep '^MODEL=' $dir/mdlvars | cut -d'=' -f2`
+		umodel=`echo $MODEL | tr "[a-z]" "[A-Z]"`
+		NPES=`grep '^_npes_=' $dir/mdlvars | cut -d'=' -f2`
+		runscr_dir=`echo $RUNS_DIR_COMPONENTS | cut -d':' -f$cnt`
+		echo "${umodel}_SRCS_DIR"=$dir >>scrvars
+		echo "${umodel}_RUNSCR_DIR"=$runscr_dir/runscr >>scrvars
+		echo "${umodel}_NPES"=$NPES >>scrvars
+		cnt=`expr $cnt + 1`
+	done
+else
+	echo "SRCS_DIR=$SRCS_DIR" >>scrvars
+fi
+echo "RUNSCR_DIR=$RUNSCR_DIR" >>scrvars
+echo "GDASCR_DIR=$GDASCR_DIR" >>scrvars
+echo "RUNS_DIR=$RUNS_DIR" >>scrvars
+echo "EXPSCR_DIR=$RUNS_DIR/expscr" >>scrvars
+chmod a+x scrvars
+. scrvars
+#
+#  create file for sed
+#
+grep '.*=' scrvars | sed 's/^_[a-z0-9].*=/\U&/g
+	s/^_//g
+	s/\(.*=\)\(.*\)/s%@\1@%\2%g/g
+	s/_=/=/g
+	s/=//g
+	s/undefined//g' >scrvars.sed

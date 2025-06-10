@@ -1,0 +1,29 @@
+#
+#  Makefile to create executables for the JMA non-hydrostatic model
+#
+#  'make' to create nhm executable
+#
+#  Author:  Masao Kanamitsu
+#  
+#  Date: 11/17/2009
+#
+SHELL = @SHELL@
+AR = @AR@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CC = @CC@
+MKDIR = @MKDIR@
+CHMOD = @CHMOD@
+MAKE = @MAKE@
+#
+###################################################################
+#
+
+all : 
+	${CD} src ; ${MAKE} || exit 8
+	${CD} Module ; ${MAKE} nhm_@MARCH@ || exit 8
+
+clean :
+	${CD} src ; ${MAKE} clean
+	${CD} Module ; ${MAKE} clean

@@ -1,0 +1,172 @@
+#!/bin/sh
+set -a
+#
+#  cps run-script configuration
+#
+#--------------------------------------------------------------
+#
+#  Change the following variable:
+#
+#    SRCS_DIR      .... Model executable directory is $SRCS_DIR/bin.
+#
+SRCS_DIR=`pwd`/../gsm
+RUNS_DIR_COMPONENTS=`pwd`
+#
+#  Following is needed for crsm.  directory of the coarse resolution
+#  history file
+#
+CDIR=
+#
+# ------------------ Do not change below ----------------------------
+#
+# Directory for runscr scripts
+#
+run_script=$1
+RUNS_DIR=`pwd`
+RUNSCR_DIR=`pwd`/runscr
+if [ -s `pwd`/runscr_gdas ] ; then
+	GDASCR_DIR=`pwd`/runscr_gdas 
+fi
+#
+#  see whether this is a coupled integration script or not
+#
+echo $SRCS_DIR | grep ':' 2>/dev/null
+if [ $? -eq 0 ] ; then
+	cpl=yes
+else
+	cpl=no
+fi
+#
+# LIBS_DIR
+#
+if [ $cpl = yes ] ; then
+	src_dir_1=`echo $SRCS_DIR | cut -d":" -f1`
+else
+	src_dir_1=$SRCS_DIR
+fi
+LIBS_DIR=`grep '^LIBS_DIR=' $src_dir_1/configure-model | cut -d'=' -f2`
+#
+#  Get key variables and all other related variables defined in libs
+#
+. $LIBS_DIR/get_libvars
+#
+../def/get_sysvars
+. ./sysvars
+#
+#  Get all other variables defined in model
+#
+if [ $cpl = no ] ; then
+	. $SRCS_DIR/mdlvars
+	umodel=`echo $MODEL | tr "[a-z]" "[A-Z]"`
+	eval ${umodel}_SRCS_DIR=$SRCS_DIR
+	eval ${umodel}_RUNSCR_DIR=$RUNS_DIR_COMPONENTS/runscr
+	eval ${umodel}_NPES=$_npes_
+	eval do_$MODEL=yes
+else
+	count=1
+	for dir in `echo $SRCS_DIR | sed 's/:/ /g'`
+	do
+		. $dir/mdlvars
+		run=`echo $RUNS_DIR_COMPONENTS | \
+			sed 's/.*=//g' | cut -d":" -f$count` 
+		umodel=`echo $MODEL | tr "[a-z]" "[A-Z]"`
+		eval ${umodel}_SRCS_DIR=$dir
+		eval ${umodel}_RUNSCR_DIR=`eval echo $run`/runscr
+		eval ${umodel}_NPES=$_npes_
+		eval do_$MODEL=yes
+		count=`expr $count + 1`
+	done
+fi
+# 
+count=1
+#
+#  domain specification file for regional model
+#
+if [ -n "$run_script" -a "$NOASK" != on ] ; then
+	#
+	# rsm/roms domains
+	# 
+	for available_model in $AVAILABLE_MODELS_LIST
+	do
+		domodel=\$do_$available_model
+		domodel=`eval echo $domodel`
+		u_available_model=`echo $available_model | tr "[a-z]" "[A-Z]"`
+		modeldir=\$${u_available_model}_SRCS_DIR
+		modeldir=`eval echo $modeldir`
+		if [ "$domodel" = yes ] ; then
+			MODEL_DEFINE=`grep "^MODEL_DEFINE=" $modeldir/configure-model | \
+						cut -d'=' -f2`
+			cp $MODEL_DEFINE/*domainspec . 2>/dev/null
+		fi
+	done
+#
+#  when rsm and roms coupled, make sure that the domain file is the same
+#
+	if [ "$COUPLE_RSM_AND_ROMS" = on ] ; then
+		diff $rsm_domainfile $roms_domainfile
+		if [ $? -ne 0 ] ; then
+			echo for rsm and roms coupling, \
+				domain specification files should be the same, \
+				but are not. 
+			echo rsm_domainfile=$rsm_domainfile \
+				roms_domainfile=$roms_domainfile
+			exit 8
+		fi
+	fi
+fi
+#
+#  Model specific additional scripts (currently only for roms).
+#  Generage scrvars script type define of variables.
+#  This needs to be called before get_scrvars since sed file is
+#  generated in get_scrvars.  Also, need to remove scrvars at the 
+#  beginning to newly generate scrvas in $MODEL.supp.runscript
+#
+rm scrvars 2>/dev/null
+if [ $cpl = no ] ; then
+	. $SRCS_DIR/mdlvars
+	if [ -s runscr/$MODEL.supp.runscript ] ; then
+		. runscr/$MODEL.supp.runscript
+	fi
+else
+	count=1
+	for dir in `echo $SRCS_DIR | sed 's/:/ /g'`
+	do
+		. $dir/mdlvars
+		if [ -s runscr/$MODEL.supp.runscript ] ; then
+			. runscr/$MODEL.supp.runscript
+		fi
+	done
+fi
+#
+#  now add other more general script type define variables for run script.
+#
+../def/get_scrvars
+#
+cat scrvars.sed >sed.dat
+sed '/@MARCH@/d' sysvars.sed >>sed.dat
+if [ $cpl = no ] ; then
+	cat $SRCS_DIR/mdlvars.sed >>sed.dat
+else
+	for dir in `echo $SRCS_DIR | sed 's/:/ /g'`
+	do
+		cat $dir/mdlvars.sed >> sed.dat
+	done
+fi
+#
+#  for the coupled system, set MODEL to cpl
+#
+if [ $cpl = yes ] ; then
+	MODEL=cpl
+fi
+#
+#  link expscr directory to current directory
+#
+ln -fs ../expscr expscr
+#
+#  configure run_script
+#
+../makefiles/sedit_files
+#
+if [ ! -z "$run_script" ] ; then 
+	cp ../expscr/$MODEL/$run_script .
+fi

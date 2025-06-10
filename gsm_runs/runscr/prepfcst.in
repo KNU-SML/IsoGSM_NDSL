@@ -1,0 +1,25 @@
+#!/bin/sh
+if [ $# -ne 1 ] ; then
+	echo $0:error in the number of arguments
+	exit 8
+fi
+PROG=fcst
+FCST_NPES=$1
+ln -fs @MODEL_DIR@/bin/co2con                 co2con
+ln -fs @MODEL_DIR@/bin/mtnvar                 mtnvar
+ln -fs @LIBS_DIR@/con/o3prod.clim.asc        o3prod
+ln -fs @LIBS_DIR@/con/o3loss.clim.asc        o3loss
+ln -fs @LIBS_DIR@/con/tune.t42l18.amip.ewmrg tune
+ln -fs @LIBS_DIR@/con/gcmo3.asc              gcmo3
+ln -fs @LIBS_DIR@/con/flwdirGSWP2.one        flw
+ln -fs @MODEL_DIR@/bin/albaer.snl             albaer.snl
+rm -f $PROG.x
+if [ @MARCH@ = mpi -o @MARCH@ = hybrid ] ; then
+	if [ ! -s @MODEL_DIR@/bin/${PROG}_t@JCAP@k@LEVS@_n$FCST_NPES.x ] ; then
+	  echo @MODEL_DIR@/bin/${PROG}_t@JCAP@k@LEVS@_n$FCST_NPES.x does not exist
+	  exit 8
+	fi
+	ln -fs @MODEL_DIR@/bin/${PROG}_t@JCAP@k@LEVS@_n$FCST_NPES.x $PROG.x
+else
+	ln -fs @MODEL_DIR@/bin/${PROG}.x $PROG.x
+fi

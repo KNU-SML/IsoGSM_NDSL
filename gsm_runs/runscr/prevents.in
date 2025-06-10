@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+obcycle=$1
+#
+PROG=prevents
+echo `date` -- $PROG started  >>ERROR.out
+rm bufr_adpupa bufr_aircft bufr_sfcsat 2>/dev/null
+if [ @MACHINE@ = cray -o @MACHINE@ = t90 -o @MACHINE@ = t3e ] ; then
+	assign -R
+	assign -a $obcycle -Fcos           @FTNID@11
+	assign -a guessig                  @FTNID@12
+	assign -a @LIBS_DIR@/con/ssierr @FTNID@13
+	assign -a nmcdate                  @FTNID@14
+	assign -a bufr_adpupa -Fcos        @FTNID@50
+	assign -a bufr_aircft -Fcos        @FTNID@51
+	assign -a bufr_sfcsat -Fcos        @FTNID@52
+else
+	rm -f @FTNID@[0-9]* 2>/dev/null
+ 	ln -sf $obcycle                    @FTNID@11
+	ln -sf guessig                     @FTNID@12
+	ln -sf @LIBS_DIR@/con/ssierr.asc @FTNID@13
+	ln -sf nmcdate                     @FTNID@14
+	ln -sf bufr_adpupa                 @FTNID@50
+	ln -sf bufr_aircft                 @FTNID@51
+	ln -sf bufr_sfcsat                 @FTNID@52
+fi
+if [ @MACHINE@ = cray -o @MACHINE@ = t90 -o @MACHINE@ = t3e ] ; then
+	NCPUS=1
+	export NCPUS
+fi
+rm -f $PROG.x
+ln -fs @SRCS_DIR@/bin/${PROG}.x $PROG.x
+./$PROG.x 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+if [ @MACHINE@ != cray -a @MACHINE@ != t90 -o @MACHINE@ != t3e ] ; then
+	rm -f @FTNID@[0-9]* 2>/dev/null
+fi

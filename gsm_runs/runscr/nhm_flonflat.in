@@ -1,0 +1,22 @@
+#!/bin/sh
+#
+# vertical cordinate for boudary data reading latitude and longtiude from rsm
+#
+PROG=nhm_flonflat
+rm @FTNID@* 2>/dev/null
+ln -fs $RSIG_DIR/r_sigit.ft00       @FTNID@20
+ln -fs ./flatflon_rsm.dat           @FTNID@30
+ln -fs ./mpab.txt                   @FTNID@40
+ln -fs $OUTER_RSM_SRCS_DIR/define.h @FTNID@50
+cat <<EOF >$PROG.parm
+ &adnum
+   iadd=$2
+ &end
+EOF
+ln -fs @MODEL_DIR@/bin/$PROG.x $PROG.x
+./$PROG.x < ./$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	echo "`date` $0: Execution failed."
+	exit 8
+fi

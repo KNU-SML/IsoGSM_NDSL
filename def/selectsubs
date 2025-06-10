@@ -1,0 +1,174 @@
+#!/bin/sh
+#
+#  selection of subroutines to compile
+#
+grep '^osulsm1=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_PROGTM_OSU1=\${OBJ_PROGTM_OSU1} 
+fi
+grep '^osulsm2=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_PROGTM_OSU2=\${OBJ_PROGTM_OSU2} 
+fi
+grep '^noalsm1=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_PROGTM_NOA1=\${OBJ_PROGTM_NOA1}
+	OBJ_PROGTM_OSU2=\${OBJ_PROGTM_OSU2}
+fi
+grep '^viclsm1=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_VIC1=\${OBJ_VIC1} 
+fi
+grep '^kuo=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_KUO=\${OBJ_KUO} 
+fi
+grep '^sas=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_SAS=\${OBJ_SAS} 
+fi
+grep '^ras=yes' cvar.env >/dev/null 2>/dev/null
+rc=$?
+if [ $rc -eq 0 ] ; then 
+	OBJ_RAS=\${OBJ_RAS} 
+	OBJ_RASV1=\${OBJ_RASV1}
+fi
+grep '^rasv2=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_RAS=\${OBJ_RAS} 
+	OBJ_RASV2=\${OBJ_RASV2}
+#	elif [ $rc -eq 0 ] ; then
+#		OBJ_RASV1=\${OBJ_RASV1}
+fi
+grep '^ccmcnv=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_CCM=\${OBJ_CCM} 
+fi
+   grep '^zm2=yes' cvar.env >/dev/null 2>/dev/null
+   if [ $? -eq 0 ] ; then
+       OBJ_ZM2=\${OBJ_ZM2}
+   fi
+grep '^kf2=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_KF2=\${OBJ_KF2} 
+fi
+grep '^ccmscv=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+  OBJ_CCMSCV=\${OBJ_CCMSCV}
+fi
+grep '^cldslingo=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_CNVCLD_SLINGO=\${OBJ_CNVCLD_SLINGO} 
+else
+	OBJ_CNVCLD_TABLE=\${OBJ_CNVCLD_TABLE} 
+fi
+grep '^cld1=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_CLD1=\${OBJ_CLD1}
+fi
+grep '^cld2=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_CLD2=\${OBJ_CLD2}
+fi
+grep '^cldwsmmps=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_CLDWSMMPS=\${OBJ_CLDWSMMPS}
+fi
+grep '^cld3=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_CLD3=\${OBJ_CLD3}
+fi
+grep '^cld5=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_CLD5=\${OBJ_CLD5}
+fi
+grep '^cld6=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_CLD6=\${OBJ_CLD6}
+fi
+grep '^cldt93=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	grep '^t93pr2=yes' cvar.env >/dev/null 2>/dev/null
+  if [ $? -eq 0 ] ; then
+    OBJ_CLDT93V2=\${OBJ_CLDT93V2}
+  else
+    OBJ_CLDT93=\${OBJ_CLDT93}
+  fi
+fi
+grep '^radmdc=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_LW_CHOU=\${OBJ_LW_CHOU} 
+else
+	OBJ_LW_FS=\${OBJ_LW_FS}
+fi
+grep '^rad_smooth_cloud=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_RAD_INT=\${OBJ_RAD_INT} 
+fi
+grep '^sw99update=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_SW_99UPDATE=\${OBJ_SW_99UPDATE} 
+fi
+grep '^reduce_grid=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_REDUCE=\${OBJ_REDUCE} 
+fi
+grep '^mrg_post=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_POST=\${OBJ_POST} 
+fi
+grep '^dg=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_DG=\${OBJ_DG} 
+fi
+grep '^rsmvectorize=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then 
+	OBJ_RSMVECTORIZE=\${OBJ_RSMVECTORIZE} 
+fi
+grep '^get=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_GET=\${OBJ_GET}
+fi
+grep '^vecsum=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_VECSUM=\${OBJ_VECSUM}
+fi
+#
+grep '^nfdr=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_NFDR=\${OBJ_NFDR}
+fi
+#
+grep '^gsmdamp=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_GSMDAMP=\${OBJ_GSMDAMP}
+fi
+#
+grep '^riv1=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_RIV=\${OBJ_RIV}
+fi
+#
+grep '^riv05=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_RIV=\${OBJ_RIV}
+fi
+#
+grep '^dfi=yes' cvar.env >/dev/null 2>/dev/null
+if [ $? -eq 0 ] ; then
+	OBJ_DFI=\${OBJ_DFI}
+fi
+#
+if [ $MODEL = rsm -o $MODEL = crsm ] ; then
+	SFC0_RSML=\${INSTALLDLIB}/rsml.a
+fi
+#
+if [ $MODEL = gsm -o $MODEL = gdas -o $MODEL = scm ] ; then
+	if [ $MARCH = mpi ] ; then
+		FCST_SFCL=\${INSTALLDLIB}/sfcl_par.a
+		FCST_MPI=\${INSTALLDLIB}/mpi.a
+	else
+		FCST_SFCL=\${INSTALLDLIB}/sfcl.a
+		FCST_MPI=
+	fi
+fi

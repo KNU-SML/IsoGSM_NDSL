@@ -1,0 +1,26 @@
+#!/bin/sh
+libdir=libs 
+libons=
+if [ "$skip_libs" != yes ] ; then
+	if [ -s $libdir ] ; then
+		if [ "$continue" != yes ] ; then
+			echo " "
+			echo "directory $libdir exist."
+			echo -n "start new (n), overwrite (o), or skip (s)? [return=o]==>"
+			read libons
+		else
+			libons=
+		fi
+		if [ -z "$libons" ] ; then
+			libons=o
+		fi
+		if [ "$libons" = n ] ; then
+			echo -n "Are you sure deleting $libdir and start over?==>"
+			read yn
+			if [ "$yn" = y -o "$yn" = yes ] ; then
+				rm -rf $libdir
+			fi
+		fi
+	fi
+fi
+libs_dir=$libdir

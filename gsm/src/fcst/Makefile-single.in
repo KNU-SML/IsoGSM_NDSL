@@ -1,0 +1,205 @@
+EXECUTABLE = fcst.x
+
+OBJ_MAIN = gsm.o gsmini.o gsmstep.o gsmend.o
+
+OBJ_INI = getcon.o zerflx.o zertmm.o setsig.o ambmsv.o \
+	glats.o epslon.o cmpind.o epsilo.o ggozrm.o \
+	gpln2i.o sincoslat.o gftlonf.o \
+	grddf.o grdkt.o gradini.o bnmc.o poly.o transo.o \
+	ambmsv_hyb.o sethyb.o
+
+OBJ_IO = rdsig.o wrisig.o wriflx.o rowsep.o wri_cldrad.o  send_sig.o 
+
+OBJ_DYN = sicdif.o gsicdf.o gozrin.o row1ns.o \
+	gloopr.o gloopa.o gloopb.o gloopp.o \
+	filtr1.o filtr2.o \
+	dellnp.o dzuvle.o \
+	gfidiu.o uvtodz.o impadj.o iminv.o \
+	gfidi_hyb.o impadj_hyb.o sicdif_hyb.o
+
+OBJ_LGNDR = sums2i.o sumtop.o pln2i.o ftilonf.o flpflm.o fl2i.o fl2ip.o \
+	uvsums.o
+
+OBJ_PHYS = gbphys.o omegas.o dcyc2.o moninp.o progt2.o \
+	mstadb.o tridin.o
+
+OBJ_PROGTM_SUBS = funcdf.o funckt.o ktsoil.o thsat.o twlt.o
+
+OBJ_OSULSM1 = progtm.o
+OBJ_OSULSM2 = progtm99.o
+OBJ_NOALSM1 = progtm99.o sfcdif.o sfcdrv.o sfcdiag.o osutm.o sfc_ocean.o  \
+		sfc_osu.o sfc_noah.o sfc_seaice.o seaicetm.o \
+		alcalc.o canres.o csnow.o devap.o frh2o.o hrt.o hrtice.o \
+		hstep.o nopac.o penman.o redprm.o rosr12.o sflx.o shflx.o \
+		smflx.o snfrac.o snksrc.o snopac.o snowpack.o snowz0.o \
+		sstep.o srt.o snow_new.o tdfcnd.o tmpavg.o tbnd.o transp.o \
+		wdfcnd.o
+OBJ_VICLSM1 = aerodynamic.o    arno_evap.o  canopy_evap.o   func_snoweb.o \
+     func_soiltemp.o  func_surfeb.o  heat_capcty.o   massrelease.o \
+         node_soil.o    vicpenman.o    rainorsnow.o \
+        root_brent.o       runoff.o  snow_albedo.o  snow_density.o \
+      snow_intcept.o    snow_melt.o soil_condvty.o  soil_temprfl.o \
+        solve_snow.o   stabilityc.o       surfeb.o       surflux.o \
+               svp.o    svp_slope.o     transprt.o       stoprun.o \
+	sfc_vic1.o sfuwvic.o sfcdif.o sfcdrv.o sfcdiag.o sfc_seaice.o \
+	sfc_ocean.o seaicetm.o
+
+OBJ_SHAL = shalcv.o
+
+OBJ_KUO = kuocnv.o
+OBJ_SAS = sascnv.o
+OBJ_RAS = setes.o esatx.o rascnv.o setras.o rascnp.o rasv.o cloud.o acritn.o rncl.o \
+	setrasv1_1d.o rascnp_1d.o
+OBJ_RASV2 = setes.o esatx.o rascnv2.o setrasv2.o rasv2.o cloudv2.o ddrft.o angrad.o \
+	crtwrk.o qrabf.o qrpf.o qsatcn.o rasset.o setqrp.o setvtp.o \
+	sigset.o vtpf.o setrasv2_1d.o 
+OBJ_CCMCNV = ccmcnv_driver.o ccmscv_driver.o conv_ccm.o buoyan.o \
+	aqsatd.o cmfmca.o cldprpccm.o closure.o convtran.o \
+	esinti.o initcommons.o gestbl.o gffgch.o mfinti.o q1q2.o \
+	resetr.o vqsatd.o whenfgt.o
+OBJ_CCMSCV = resetr.o initcommons.o gffgch.o gestbl.o \
+             mfinti.o esinti.o aqsatd.o whenfgt.o vqsatd.o \
+             cmfmca.o ccmscv_driver.o
+OBJ_KF2 = kf2cnv.o kf_eta_para.o kf_lutab.o prof5.o tpmix2dd.o tpmix2.o \
+	condload.o envirtht.o dtfrznew.o
+OBJ_CCMCOM = shr_kind_mod.o physconst.o ppgrid.o dycore.o \
+          pmgrid.o moistconvection.o constituents.o wv_saturation.o \
+          physics_types.o cldwat.o virtem.o zmid.o zint.o
+OBJ_ZM2 = zm_conv.o zm_conv_driver.o
+
+OBJ_CLDTABLE = cnvcld.o
+OBJ_CLDSLINGO = cnvcldn.o
+
+OBJ_HDIF = deldif.o dampux.o deldfsp.o gridiff.o
+
+OBJ_DYN_ONELP = gloop.o
+
+OBJ_REDUCE_GRID = greduceg.o reduceintp.o reducepick.o
+
+OBJ_UTIL = gncpus.o rmsgt.o bartri.o tridi2.o farg.o
+
+OBJ_BLOCKDATA = bdpkap.o dfkt.o gfdlrd.o
+
+OBJ_RAD = gradpre.o grphys.o grrad1.o grrad2.o ozon2d.o oz2d.o albsno.o \
+	rdlwsw.o albaer.o soluv.o cdate.o \
+	compjd.o conrad.o coszmn.o crhtab.o fcstim.o \
+	aeros.o gaeros.o aeros8.o gaeros8.o gcljms.o \
+	grlwsw.o hconst.o prtime.o solar.o table.o \
+	dbaeros.o dbaeros8.o insur2.o
+
+OBJ_RAD_SMOOTH_CLOUD = cinpamt.o cvinamt.o cvintf.o cvintfx.o cintp.o cintpx.o \
+	ggavet.o gintp.o
+
+OBJ_RADMDC = lwrchou.o irrad1.o b10exps.o b10kdis.o cfcexps.o cfckdis.o \
+	ch4exps.o ch4kdis.o co2exps.o co2kdis.o column.o \
+	comexps.o comkdis.o conexps.o h2oexps.o h2okdis.o \
+	n2oexps.o n2okdis.o tablup.o
+
+OBJ_SW99UPDATE = aeros99.o dbaeros99.o flxco299.o gaeros99.o \
+	solir99.o soluv99.o swflux99.o swr99.o
+
+OBJ_SWCHOU = flxco2.o swr95.o soliri.o swflux.o soluvi.o solir.o
+
+OBJ_RADFS = clo89.o lwr88.o fst88.o e1e290.o e290.o e2spec.o e3v88.o \
+	spa88.o
+ 
+OBJ_RADCLD = cldjms.o cldjmsn.o cldadj.o cldprp.o cldprpi.o
+
+OBJ_DG = inddia.o zerdia.o getdia.o putdia.o accdia.o wridia.o \
+	zerznl.o znlacm.o znlavb.o wriznl.o \
+	kenpre.o kenput.o wriken.o getij.o \
+	znlaim.o znlais.o znlavz.o znldia.o znlprt.o znlmlt.o \
+	ipwrcn.o isc8.o ismax.o ismin.o mtntrq.o
+
+OBJ_O3 = seto3p.o o3phys.o o3int.o o3intn.o o3sbuv.o
+
+OBJ_GWD = gwdps.o gwdrag.o
+
+OBJ_CLD1 = lrgscl.o
+OBJ_CLD2 = gscond.o precpd.o
+OBJ_CLDWSMMPS = cloud2.o cldpar.o
+OBJ_CLD3 = cloud3.o cldpar.o
+OBJ_CLD5 = cloud5.o cldpar.o
+OBJ_CLD6 = cloud6.o cldpar.o
+OBJ_CLDT93 = t93clds.o t93clds_driver.o
+OBJ_T93PR2 = t93cldsv2.o t93clds_driver.o
+
+OBJ_MRG_POST = subpgb.o getrh.o hydro.o isrcheq.o isrchflt.o \
+liftix.o omega.o sig2mw.o sig2p.o sig2pt.o sig2tp.o \
+spcoef.o spfmax.o spline.o sundry.o sunprm.o wryte.o \
+gau2ll.o cof2grd.o fwindx.o
+
+OBJ_DFI = dfini.o mltdia.o mltflx.o
+
+OBJ_DYN_ONELP = gloop.o
+
+OBJ_LFM = lfmfini.o lfmfilt.o lfmfout.o
+
+OBJ_GSMDAMP = gloopn.o basefnam.o
+
+OBJ_RIV1 = pgriv.o gau2llc.o
+OBJ_RIV05 = pgriv.o gau2llc.o
+
+OBJS = ${OBJ_MAIN} ${OBJ_INI} ${OBJ_IO} ${OBJ_DYN} ${OBJ_LGNDR} ${OBJ_PHYS} ${OBJ_BLOCKDATA} ${OBJ_PROGTM_SUBS} @OBJ_OSULSM1@ @OBJ_OSULSM2@ @OBJ_NOALSM1@ ${OBJ_CCMCOM} ${OBJ_SHAL} @OBJ_CCMSCV@ @OBJ_KUO@ @OBJ_SAS@ @OBJ_RAS@ @OBJ_RASV2@ @OBJ_CCMCNV@ @OBJ_KF2@ @OBJ_ZM2@ @OBJ_CLDTABLE@ @OBJ_CLDSLINGO@ ${OBJ_RAD} @OBJ_RADMDC@ @OBJ_RADFS@ ${OBJ_SWCHOU} @OBJ_SW99UPDATE@ @OBJ_RAD_SMOOTH_CLOUD@ ${OBJ_RADCLD} ${OBJ_O3} ${OBJ_HDIF} ${OBJ_GWD} @OBJ_VICLSM1@ @OBJ_REDUCE_GRID@ ${OBJ_UTIL} @OBJ_DG@ @OBJ_MRG_POST@ @OBJ_CLD1@ @OBJ_CLD2@ @OBJ_CLDWSMMPS@ @OBJ_CLD3@ @OBJ_CLD5@ @OBJ_CLD6@ @OBJ_CLDT93@ @OBJ_T93PR2@ @OBJ_GSMDAMP@ @OBJ_RIV1@ @OBJ_RIV05@ @OBJ_DFI@
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @MODEL_SINGLE_F77@
+FORT_FLAGS = @MODEL_SINGLE_FORT_FLAGS@
+LOAD_FLAGS = @MODEL_SINGLE_LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIBS_DIR@/lib
+INSTALL_DIR = @MODEL_DIR@/bin
+INSTALLDLIB = @MODEL_DIR@/bin
+INSTALL_LIB = @MODEL_DIR@/bin
+EXTRA_LIBS = @EXTRA_LIBS@
+EXTRA_LIBS_FCST = @MODEL_SINGLE_EXTRA_LIBS@
+
+LIBS = ${INSTALLDLIB}/share.a ${INSTALLDLIB}/sfcl.a ${LIB_DIR}/modelib.a ${LIB_DIR}/w3lib.a ${INSTALLDLIB}/share.a ${EXTRA_LIBS_FCST}
+
+#EXP_PARENT = @EXP_PARENT@
+#.DEFAULT :
+#	ln -fs ${EXP_PARENT}/src/fcst/$@ $@
+
+${EXECUTABLE} : ${OBJS} ${LIBS}
+	if [ @MACHINE@ = mac ] ; then \
+		ranlib -s ${LIBS} ; \
+	fi
+	${F77} ${LOAD_FLAGS} -o $@ ${OBJS} ${LIBS} ${EXTRA_LIBS}
+	JCAP=`grep -i '#define _jcap_' ../../define.h | sed "s/.*_ *//g"` ; \
+	LEVS=`grep -i '_levs_' ../../define.h | sed "s/.*_ *//g"` ; \
+	NPES=`grep -i '_npes_' ../../define.h | sed "s/.*_ *//g"` ; \
+	${CP} $@ ${INSTALL_DIR}/fcst_t$${JCAP}k$${LEVS}_n$${NPES}.x ; ${RM} -f ${INSTALL_DIR}/fcst.x ; \
+	ln -fs ${INSTALL_DIR}/fcst_t$${JCAP}k$${LEVS}_n$${NPES}.x ${INSTALL_DIR}/fcst.x
+	${CP} $@ ${INSTALL_DIR}
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f .F
+
+.F.f :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f ; rm $*.i
+
+.F.o :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f ; rm $*.i
+	${F77} ${FORT_FLAGS} -c $*.f
+
+.f.o :
+	${F77} ${FORT_FLAGS} -c $*.f
+
+clean :
+	- ${RM} -f *.f *.o .mod ${EXECUTABLE} core
+
+dist_clean :
+	- ${RM} -f *.f *.o *.mod *.x core Makefile
+	- ${RM} -rf rii_files

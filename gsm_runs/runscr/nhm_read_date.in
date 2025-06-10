@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# read initial time and make the boudary and forecast shels
+#
+PROG=nhm_read_date
+rm @FTNID@*
+ln -fs ${RSIG_DIR}/r_sigit.ft00  @FTNID@25
+ln -fs ./idate.txt               @FTNID@30
+ln -fs @MODEL_DIR@/bin/$PROG.x $PROG.x
+./$PROG.x 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	echo "`date` $0: Execution failed."
+	exit 8
+fi

@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+set -x
+if [ $# -ne 4 ] ; then
+	echo $0:error in the number of arguments
+	exit 8
+fi
+PROG1=$1
+PROG1_NPES=$2
+PROG2=$3
+PROG2_NPES=$4
+#
+if [ $PROG1 = roms -o $PROG2 = roms ] ; then
+	ln -fs /rhome/yeong/test/svrtest/gsm_runs/runscr/roms.parm .
+fi
+if [ $PROG1 = roms ] ; then
+	PARAMFILE1=roms.parm
+	PARAMFILE2=
+elif [ $PROG2 = roms ] ; then
+	PARAMFILE1=
+	PARAMFILE2=roms.parm
+fi
+#
+here_dir=`pwd`
+if [ mpi = mpi -o mpi = hybrid ] ; then
+        /rhome/yeong/test/svrtest/gsm_runs/runscr/mpisub $PROG1.x:$PROG1_NPES:$PARAMFILE1 $PROG2.x:$PROG2_NPES:$PARAMFILE2
+        cc=$?
+else
+	echo "couping with single or thread mode not possible" >>ERROR.out
+	echo "couping with single or thread mode not possible"
+	exit 8
+fi
+if [ $cc -ne 0 ] ; then
+        echo "$PROG1-$PROG2 coupled run failed" >>ERROR.out
+        exit 8
+fi
+grep 'NaN' out-$PROG1-$PROG2.ft$hx
+if [ $? -eq 0 ]; then
+        echo "The run has NaN crushed !!!" >> ERROR.out
+        exit 8
+fi
+grep 'nan' out-$PROG1-$PROG2.ft$hx
+if [ $? -eq 0 ]; then
+        echo "The run has nan crushed !!!" >> ERROR.out
+        exit 8
+fi
+grep '<WARNING>:' out-$PROG1-$PROG2.ft$hx >>ERROR.out
+#
+exit 0

@@ -1,0 +1,60 @@
+EXECUTABLE = sfc0.x
+OBJS = @OBJS_SFC0@
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @MODELSUP_F77@
+FORT_FLAGS = @MODELSUP_FORT_FLAGS@
+LOAD_FLAGS = @MODELSUP_LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIBS_DIR@/lib
+INSTALLDLIB = @MODEL_DIR@/bin
+INSTALL_DIR = @MODEL_DIR@/bin
+EXTRA_LIBS = @MODELSUP_EXTRA_LIBS@
+EXTRA_LIBS_SFC0 = 
+
+LIBS = ${INSTALLDLIB}/sfcl.a ${INSTALLDLIB}/share.a ${LIB_DIR}/w3lib.a ${LIB_DIR}/modelib.a  ${EXTRA_LIBS_SFC0}
+
+#EXP_PARENT = @EXP_PARENT@
+#.DEFAULT :
+#	ln -fs ${EXP_PARENT}/src/sfc/$@ $@
+
+${EXECUTABLE} : ${OBJS} ${LIBS}
+	if [ @MACHINE@ = mac ] ; then \
+		ranlib -s ${LIBS} ; \
+	fi
+	${F77} ${LOAD_FLAGS} -o $@ ${OBJS} ${LIBS} ${EXTRA_LIBS}
+	${CP} $@ ${INSTALL_DIR}
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f .F
+
+.F.f :
+	sed '/<paramodel.h>/{G;s/$$/#undef MP/;}' $*.F >TEMP.F
+	${CPP} -P ${INCLUDE_DIR} TEMP.F >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f ; rm $*.i TEMP.F
+
+.F.o :
+	sed '/<paramodel.h>/{G;s/$$/#undef MP/;}' $*.F >TEMP.F
+	${CPP} -P ${INCLUDE_DIR} TEMP.F >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f ; rm $*.i TEMP.F
+	${F77} ${FORT_FLAGS} -c $*.f
+
+.f.o :
+	${F77} ${FORT_FLAGS} -c $*.f
+
+clean :
+	- ${RM} -f *.f *.o ${EXECUTABLE} core
+
+dist_clean :
+	- ${RM} -f *.f *.o *.x core Makefile
+	- ${RM} -rf rii_files

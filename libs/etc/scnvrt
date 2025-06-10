@@ -1,0 +1,79 @@
+#!/bin/sh
+if [ $# -ne 7 ] ; then
+	echo 'Usage: scnvrt gsm0rsm sfcftyp jcap:idim:jdim:kdim newyr:newmo:newdy:newhr:fhnew infmt:ofmt isig:isfc osig:osfc'
+	echo "`date` $0: Wrong usage" >>ERROR.out
+	exit 8 
+fi
+#
+# rsm0gsm [gsm,rsm]
+# sfcftyp [osu1,osu2,noa1]
+# newyr,newmo,newdy,newhr,fhnew  -1 for keeping original date record
+#
+dir=`echo $0 | sed 's?/[^/]*$??g'`
+currdir=`pwd`
+cd $dir
+ETC_DIR=`pwd`
+cd $currdir
+#
+FTNID=fort.
+#
+gsm0rsm=$1
+sfcftyp=$2
+#
+jcap=`echo $3 | cut -d':' -f1`
+idim=`echo $3 | cut -d':' -f2`
+jdim=`echo $3 | cut -d':' -f3`
+kdim=`echo $3 | cut -d':' -f4`
+#echo "jcap=$jcap idim=$idim jdim=$jdim kdim=$kdim"
+#
+newyr=`echo $4 | cut -d':' -f1`
+newmo=`echo $4 | cut -d':' -f2`
+newdy=`echo $4 | cut -d':' -f3`
+newhr=`echo $4 | cut -d':' -f4`
+fhnew=`echo $4 | cut -d':' -f5`
+#echo "newyr=$newyr newmo=$newmo newdy=$newdy newhr=$newhr fhnew=$fhnew"
+#
+infmt=`echo $5 | cut -d':' -f1`
+ofmt=`echo $5 | cut -d':' -f2`
+#
+isig=`echo $6 | cut -d':' -f1`
+isfc=`echo $6 | cut -d':' -f2`
+#echo isig=$isig
+#echo isfc=$isfc
+#
+osig=`echo $7 | cut -d':' -f1`
+osfc=`echo $7 | cut -d':' -f2`
+#echo osig=$osig
+#echo osfc=$osfc
+#
+if [ ! -s $isig ] ; then
+	echo "<Warning> $isig. No such file."
+	echo "<Warning> `date` $0: $isig. No such file." >>ERROR.out
+fi
+if [ ! -s $isfc ] ; then
+	echo "<Warning> `date` $0: $isfc. No such file." >>ERROR.out
+fi
+#
+rm -f ${FTNID}11 ${FTNID}12 ${FTNID}51 ${FTNID}52 
+ln -fs $isig ${FTNID}11
+ln -fs $isfc ${FTNID}12
+ln -fs $osig ${FTNID}51
+ln -fs $osfc ${FTNID}52
+
+echo ' &NAMCNV' >scnvrt.data
+echo " GSM0RSM='$gsm0rsm'," >>scnvrt.data
+echo " SFCFTYP='$sfcftyp'," >>scnvrt.data
+echo " INFMT='$infmt',OFMT='$ofmt'," >>scnvrt.data
+echo " JCAP=$jcap,IDIM=$idim,JDIM=$jdim,KDIM=$kdim," >>scnvrt.data
+echo " NEWYR=$newyr,NEWMO=$newmo,NEWDY=$newdy,NEWHR=$newhr," >>scnvrt.data
+echo " FHNEW=$fhnew.,                                       " >>scnvrt.data
+echo ' &END' >>scnvrt.data
+#
+$ETC_DIR/scnvrt.x <scnvrt.data 1>scnvrt.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo " $0: Execution failed"
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+rm -f ${FTNID}11 ${FTNID}12 ${FTNID}51 ${FTNID}52 
+exit 0

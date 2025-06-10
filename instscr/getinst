@@ -1,0 +1,124 @@
+#!/bin/sh
+hostname=`hostname`
+echo $hostname | grep -i rokka >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=ecpc
+fi
+echo $hostname | grep -i hodan >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=ecpc
+fi
+echo $hostname | grep -i hyo >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=ecpc
+fi
+echo $hostname | grep -i hari >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=ecpc
+fi
+echo $hostname | grep -i fubuki >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=ecpc
+fi
+echo $hostname | grep -i ucsd >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=sio
+fi
+echo $hostname | grep -i tf0 >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=sdsc
+fi
+echo $hostname | grep -i ds0 >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=sdsc
+fi
+echo $hostname | grep -i b80n >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=sdsc
+fi
+echo $hostname | grep -i compas >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=sio
+fi
+echo $hostname | grep -i atlas >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=sio
+fi
+echo $hostname | grep -i compute >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=sio
+fi
+echo $hostname | grep -i rime >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=arsc
+fi
+echo $hostname | grep -i moon >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=esc
+fi
+echo $hostname | grep -i gbnode >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=esc
+fi
+echo $hostname | grep -i emgar >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=ecpc
+fi
+echo $hostname | grep -i bf >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=ncar
+fi
+echo $hostname | grep -i "bv.*\.ucar\.edu" >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=ncar
+fi
+echo $hostname | grep -i "bl.*\.ucar\.edu" >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=ncar
+fi
+echo $hostname | grep -i bs >/dev/null
+if [ $? -eq 0 ] ; then
+	INSTITUTION=ncar
+fi
+inst=
+if [ -s .hist ] ; then
+	inst=`grep "^INSTITUTION=" .hist | cut -d'=' -f2`
+fi
+if [ ! -z "$inst" ] ; then
+	INSTITUTION=$inst
+fi
+if [ -z "$INSTITUTION" ] ; then
+	echo ' '
+	echo "Institution"
+	echo "cannot identify the INSTITUTION"
+	echo "which INSTITUTION the machine belongs to?"
+	echo -n "sio, ecpc, esc, navo, ncar, ncep, ncsa, nersc, tacc, sdsc or any name [return=ecpc] ==>"
+	read INSTITUTION
+	if [ -z "$INSTITUTION" ] ; then
+		INSTITUTION=ecpc
+	fi
+else
+	if [ "$continue" != yes ] ; then
+		echo ' '
+		echo "Institution"
+		echo -n "Enter INSTITUTION, ? for list, [return=$INSTITUTION] ==>"
+		read inst
+	else
+		inst=
+	fi
+	if [ "$inst" = '?' ] ; then
+	echo -n "sio, ecpc, esc, navo, ncar, ncep, ncsa, nersc, tacc, sdsc or any name [return=ecpc]==>"
+		read inst
+	fi
+	if [ ! -z "$inst" ] ; then
+		INSTITUTION=$inst
+	fi
+fi
+grep INSTITUTION= .hist >/dev/null 2>/dev/null
+rc=$?
+sed "s/INSTITUTION=.*/INSTITUTION=$INSTITUTION/g" .hist >tmp.$$
+if [ $rc -eq 0 ] ; then
+	mv tmp.$$ .hist	
+else
+	echo INSTITUTION=$INSTITUTION >>.hist
+fi

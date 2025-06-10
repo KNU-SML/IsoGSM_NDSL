@@ -1,0 +1,53 @@
+LIB = sfcl.a
+OBJS = @OBJS_SFCL@
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+AR = @AR@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @MODEL_SINGLE_F77@
+FORT_FLAGS = @MODEL_SINGLE_FORT_FLAGS@
+LOAD_FLAGS = @MODEL_SINGLE_LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIBS_DIR@/lib
+INSTALLDLIB = @MODEL_DIR@/bin
+
+#EXP_PARENT = @EXP_PARENT@
+#.DEFAULT :
+#	ln -fs ${EXP_PARENT}/src/sfcl/$@ $@
+
+${LIB} : ${OBJS}
+	${AR} -r $@ ${OBJS} 
+	${CP} $@ ${INSTALLDLIB}
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f .F
+
+.F.f :
+	sed '/<paramodel.h>/{G;s/$$/#undef MP/;}' $*.F >TEMP.F
+	${CPP} -P ${INCLUDE_DIR} TEMP.F >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f ; rm $*.i TEMP.F
+
+.F.o :
+	sed '/<paramodel.h>/{G;s/$$/#undef MP/;}' $*.F >TEMP.F
+	${CPP} -P ${INCLUDE_DIR} TEMP.F >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f ; rm $*.i TEMP.F
+	${F77} ${FORT_FLAGS} -c $*.f
+
+.f.o :
+	${F77} ${FORT_FLAGS} -c $*.f
+
+clean :
+	- ${RM} -f *.f *.o *.a core
+
+dist_clean :
+	- ${RM} -f *.f *.o *.x *.a core Makefile
+	- ${RM} -rf rii_files

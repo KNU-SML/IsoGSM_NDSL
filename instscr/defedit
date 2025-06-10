@@ -1,0 +1,353 @@
+		#
+		# edit files in def directory for --enable- options
+		#
+		# physics.h
+		#
+		# special handling for r2 option
+		#
+		def_dir=$currdir/def/model_config
+		if [ "$enable_r2" = yes ] ; then
+			enable_osu2=yes
+			sed 's/#undef *R2/#define R2/g' $def_dir/physics.h | \
+			sed 's/#define *RAD_SMOOTH_CLOUD/#undef RAD_SMOOTH_CLOUD/g' | \
+			sed 's/#define *CLDADJ/#undef CLDADJ/g' | \
+			sed 's/#define *RADMDC/#undef RADMDC/g' | \
+			sed 's/#define *SW99UPDATE/#undef SW99UPDATE/g' | \
+			sed 's/#define *CLDSLINGO/#undef CLDSLINGO/g' | \
+			sed 's/#undef *SAS/#define SAS/g' | \
+			sed 's/#define *RAS/#undef RAS/g' | \
+			sed 's/#define *RASV2/#undef RASV2/g' | \
+			sed 's/#define *CCMCNV/#undef CCMCNV/g' | \
+			sed 's/#define *CCMSCV/#undef CCMSCV/g' | \
+			sed 's/#undef *SFC/#define SFC/g' | \
+			sed 's/#undef *SFCMRG/#define SFCMRG/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_osu2" = yes ] ; then
+			sed 's/#undef *OSULSM2/#define OSULSM2/g' $def_dir/physics.h | \
+			sed 's/#undef *HYDRO/#define HYDRO/g'     | \
+			sed 's/#define *OSULSM1/#undef OSULSM1/g' | \
+			sed 's/#define *VICLSM1/#undef VICLSM1/g' | \
+			sed 's/#define *NOALSM1/#undef NOALSM1/g' | \
+			sed 's/#define *NOAHYDRO/#undef NOAHYDRO/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_noah" = yes ] ; then
+			sed 's/#define *OSULSM2/#undef OSULSM2/g' $def_dir/physics.h | \
+			sed 's/#define *OSULSM1/#undef OSULSM1/g' | \
+			sed 's/#define *VICLSM1/#undef VICLSM1/g' | \
+			sed 's/#undef *NOALSM1/#define NOALSM1/g' | \
+			sed 's/#undef *NOAHYDRO/#define NOAHYDRO/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_noahydro" = yes ] ; then
+			sed 's/#undef *NOAHYDRO/#define NOAHYDRO/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_noah_jun05" = yes ] ; then
+			sed 's/#undef *NOAH_JUN05/#define NOAH_JUN05/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_nobsflw" = yes ] ; then
+			sed 's/#undef *NOBSFLW/#define NOBSFLW/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_vic1" = yes ] ; then
+			sed 's/#define *OSULSM2/#undef OSULSM2/g' $def_dir/physics.h | \
+			sed 's/#define *HYDRO/#undef HYDRO/g' | \
+			sed 's/#define *OSULSM1/#undef OSULSM1/g' | \
+			sed 's/#define *NOALSM1/#undef NOALSM1/g' | \
+			sed 's/#define *NOAHYDRO/#undef NOAHYDRO/g' | \
+			sed 's/#undef *VICLSM1/#define VICLSM1/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_kimgwd" = yes ] ; then
+			sed 's/#undef *KIMGWD/#define KIMGWD/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_insacld" = yes ] ; then
+			sed 's/#undef *INSA_CLD/#define INSA_CLD/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_cldw_zc" = yes ] ; then
+			sed 's/#define *CLD1/#undef CLD1/g' $def_dir/physics.h | \
+			sed 's/#undef *CLD2/#define CLD2/g' | \
+			sed 's/#define *CLDT93/#undef CLDT93/g' | \
+			sed 's/#define *CLDWSMMPS/#undef CLDWSMMPS/g' | \
+			sed 's/#define *CLD3/#undef CLD3/g' | \
+			sed 's/#define *CLD5/#undef CLD5/g' | \
+			sed 's/#define *CLD6/#undef CLD6/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_cldw_si" = yes ] ; then
+			sed 's/#define *CLD1/#undef CLD1/g' $def_dir/physics.h | \
+			sed 's/#define *CLD2/#undef CLD2/g' | \
+			sed 's/#undef *CLDT93/#define CLDT93/g' | \
+			sed 's/#define *CLDWSMMPS/#undef CLDWSMMPS/g' | \
+			sed 's/#define *CLD3/#undef CLD3/g' | \
+			sed 's/#define *CLD5/#undef CLD5/g' | \
+			sed 's/#define *CLD6/#undef CLD6/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_cldw_sy3" = yes ] ; then
+			sed 's/#define *CLD1/#undef CLD1/g' $def_dir/physics.h | \
+			sed 's/#define *CLD2/#undef CLD2/g' | \
+			sed 's/#define *CLDT93/#undef CLDT93/g' | \
+			sed 's/#define *CLDWSMMPS/#undef CLDWSMMPS/g' | \
+			sed 's/#undef *CLD3/#define CLD3/g' | \
+			sed 's/#define *CLD5/#undef CLD5/g' | \
+			sed 's/#define *CLD6/#undef CLD6/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_cldw_sy3n" = yes ] ; then
+			sed 's/#define *CLD1/#undef CLD1/g' $def_dir/physics.h | \
+			sed 's/#define *CLD2/#undef CLD2/g' | \
+			sed 's/#define *CLDT93/#undef CLDT93/g' | \
+			sed 's/#undef *CLDWSMMPS/#define CLDWSMMPS/g' | \
+			sed 's/#define *CLD3/#undef CLD3/g' | \
+			sed 's/#define *CLD5/#undef CLD5/g' | \
+			sed 's/#define *CLD6/#undef CLD6/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_cldw_sy5" = yes ] ; then
+			sed 's/#define *CLD1/#undef CLD1/g' $def_dir/physics.h | \
+			sed 's/#define *CLD2/#undef CLD2/g' | \
+			sed 's/#define *CLDT93/#undef CLDT93/g' | \
+			sed 's/#define *CLDWSMMPS/#undef CLDWSMMPS/g' | \
+			sed 's/#define *CLD3/#undef CLD3/g' | \
+			sed 's/#undef *CLD5/#define CLD5/g' | \
+			sed 's/#define *CLD6/#undef CLD6/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_cldw_sy6" = yes ] ; then
+			sed 's/#define *CLD1/#undef CLD1/g' $def_dir/physics.h | \
+			sed 's/#define *CLD2/#undef CLD2/g' | \
+			sed 's/#define *CLDT93/#undef CLDT93/g' | \
+			sed 's/#define *CLDWSMMPS/#undef CLDWSMMPS/g' | \
+			sed 's/#define *CLD3/#undef CLD3/g' | \
+			sed 's/#define *CLD5/#undef CLD5/g' | \
+			sed 's/#undef *CLD6/#define CLD6/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enanble_cld_rh" = yes ] ; then
+			sed 's/#define *INTERACTIVE_STRATUS/#undef INTERACTIVE_STRATUS/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enanble_cld_randal" = yes ] ; then
+			sed 's/#undef *INTERACTIVE_STRATUS/#define INTERACTIVE_STRATUS/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enanble_cldw2rad" = yes ] ; then
+			sed 's/#undef *ICECLOUD/#define ICECLOUD/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$disable_cldw2rad" = yes ] ; then
+			sed 's/#define *ICECLOUD/#undef ICECLOUD/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$disable_insacld" = yes ] ; then
+			sed 's/#define *INSA_CLD/#undef INSA_CLD/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_kuo" = yes ] ; then
+			sed 's/#define *RAS/#undef RAS/g' $def_dir/physics.h | \
+			sed 's/#undef *KUO/#define KUO/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_sas" = yes ] ; then
+			sed 's/#define *RAS/#undef RAS/g' $def_dir/physics.h | \
+			sed 's/#undef *SAS/#define SAS/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_rasv2" = yes ] ; then
+			sed 's/#define *RAS/#undef RAS/g' $def_dir/physics.h | \
+			sed 's/#undef *RASV2/#define RASV2/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_ccmcnv" = yes ] ; then
+			sed 's/#define *RAS/#undef RAS/g' $def_dir/physics.h | \
+			sed 's/#undef *CCMCNV/#define CCMCNV/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_kf2" = yes ] ; then
+			sed 's/#define *RAS/#undef RAS/g' $def_dir/physics.h | \
+			sed 's/#undef *KF2/#define KF2/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_hydro" = yes ] ; then
+			sed 's/#undef *HYDRO/#define HYDRO/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_diffq" = yes ] ; then
+			sed 's/#undef *DIFFQ/#define DIFFQ/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$disable_diffq" = yes ] ; then
+			sed 's/#define *DIFFQ/#undef DIFFQ/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		if [ "$enable_couple_gsm_and_rsm" = yes ] ; then
+			sed 's/#undef *COUPLE_GSM_AND_RSM/#define COUPLE_GSM_RSM/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+			enable_couple=yes
+		fi
+		if [ "$enable_couple_rsm_and_roms" = yes ] ; then
+			sed 's/#undef *COUPLE_RSM_AND_ROMS/#define COUPLE_RSM_ROMS/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+			enable_couple=yes
+		fi
+		if [ "$enable_couple_gsm_and_roms" = yes ] ; then
+			sed 's/#undef *COUPLE_GSM_AND_ROMS/#define COUPLE_GSM_ROMS/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+			enable_couple=yes
+		fi
+		if [ "$enable_couple" = yes ] ; then
+			sed 's/#undef *COUPLE *$/#define COUPLE/g' $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		#
+		#  dynamics.h
+		#
+		if [ "$enable_psplit" = yes ] ; then
+			sed 's/#undef *PSPLIT/#define PSPLIT/g' $def_dir/dynamics.h >tmp.$$
+			mv tmp.$$ $def_dir/dynamics.h
+		fi
+		if [ "$disable_psplit" = yes ] ; then
+			sed 's/#define *PSPLIT/#undef PSPLIT/g' $def_dir/dynamics.h >tmp.$$
+			mv tmp.$$ $def_dir/dynamics.h
+		fi
+		if [ "$enable_rsmvectorize" = yes ] ; then
+			sed 's/#undef *RSMVECTORIZE/#define RSMVECTORIZE/g' $def_dir/dynamics.h >tmp.$$
+			mv tmp.$$ $def_dir/dynamics.h
+		fi
+		MTNRES=8
+		if [ "$enable_mtn4m" = yes ] ; then
+			sed 's/#undef *MTN4MIN/#define MTN4MIN/g' $def_dir/physics.h | \
+			sed 's/#define *GTOPO30/#undef GTOPO30/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+			MTNRES=4
+		fi
+		if [ "$enable_gtopo30" = yes ] ; then
+			sed 's/#undef *GTOPO30/#define GTOPO30/g' $def_dir/physics.h | \
+			sed 's/#define *MTN4MIN/#undef MTN4MIN/g' >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+			MTNRES=0.5
+		fi
+		if [ ! -z "$critsnow" ] ; then
+			sed "s/#undef *CRITSNOW/#define CRITSNOW $critsnow/g" $def_dir/physics.h >tmp.$$
+			mv tmp.$$ $def_dir/physics.h
+		fi
+		#
+		# diag.h
+		#
+		if [ "$enable_dg3" = yes ] ; then
+			sed 's/#undef *DG3/#define DG3/g' $def_dir/diag.h >tmp.$$
+			mv tmp.$$ $def_dir/diag.h
+		fi
+		if [ "$enable_dgz" = yes ] ; then
+			sed 's/#undef *DGZ/#define DGZ/g' $def_dir/diag.h >tmp.$$
+			mv tmp.$$ $def_dir/diag.h
+		fi
+		if [ "$enable_ken" = yes ] ; then
+			sed 's/#undef *KEN/#define KEN/g' $def_dir/diag.h >tmp.$$
+			mv tmp.$$ $def_dir/diag.h
+		fi
+		if [ "$enable_dbg" = yes ] ; then
+			sed 's/#undef *DBG/#define DBG/g' $def_dir/debug.h >tmp.$$
+			mv tmp.$$ $def_dir/debug.h
+		fi
+		#
+		#  misc.h
+		#
+		if [ "$enable_mrgpost" = yes ] ; then
+			sed 's/#undef *MRG_POST/#define MRG_POST/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_pgbpara" = yes ] ; then
+			sed 's/#undef *PGB_PARALLEL/#define PGB_PARALLEL/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_pgbspara" = yes ] ; then
+			sed 's/#undef *PGB_SEMIPARALLEL/#define PGB_SEMIPARALLEL/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_pgbnpara" = yes ] ; then
+			sed 's/#undef *PGB_NOPARALLEL/#define PGB_NOPARALLEL/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_mtnzero" = yes ] ; then
+			sed 's/#undef *SETMTNZERO/#define SETMTNZERO/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_baseout" = yes ] ; then
+			sed 's/#undef *BASEOUT/#define BASEOUT/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_reset_fhour" = yes ] ; then
+			sed 's/#undef *RESET_FHOUR/#define RESET_FHOUR/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_noprint" = yes ] ; then
+			sed 's/#undef *NOPRINT/#define NOPRINT/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_stdamp" = yes ] ; then
+			sed 's/#undef *STDAMP /#define STDAMP /g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$disable_stdamp" = yes ] ; then
+			sed 's/#define *STDAMP /#undef STDAMP /g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_stdamp3" = yes ] ; then
+			sed 's/#undef *STDAMP3/#define STDAMP3/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$disable_stdamp3" = yes ] ; then
+			sed 's/#define *STDAMP3/#undef STDAMP3/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_gsmdamp" = yes ] ; then
+		    if [ $MARCH = mpi ] ; then # only for mpi run
+			sed 's/#undef *GSMDAMP /#define GSMDAMP /g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		    fi
+		fi
+		if [ "$disable_gsmdamp" = yes ] ; then
+			sed 's/#define *GSMDAMP /#undef GSMDAMP /g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_adjsoilw" = yes ] ; then
+			sed 's/#undef *ADJSOILW/#define ADJSOILW/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_nfdr" = yes ] ; then
+			sed 's/#undef *NFDR/#define NFDR/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi
+		if [ "$enable_riv1" = yes ] ; then
+		    if [ $MARCH = mpi ] ; then
+		        sed 's/#undef *RIV1/#define RIV1/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		        sed 's/#define *RIV05/#undef RIV05/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		    fi
+		fi
+		if [ "$enable_riv05" = yes ] ; then
+		    if [ $MARCH = mpi ] ; then
+		        sed 's/#undef *RIV05/#define RIV05/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		        sed 's/#define *RIV1/#undef RIV1/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		    fi
+		fi
+		if [ "$enable_comreal4" = yes ] ; then
+		    if [ $MARCH = mpi ] ; then
+		        sed 's/#undef *COMR4/#define COMR4/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		    fi
+		fi
+		if [ "$disable_comreal4" = yes ] ; then
+		        sed 's/#define *COMR4/#undef COMR4/g' $def_dir/misc.h >tmp.$$
+			mv tmp.$$ $def_dir/misc.h
+		fi

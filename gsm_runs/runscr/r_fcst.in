@@ -1,0 +1,66 @@
+#!/bin/sh
+set -x
+#
+#  execute forecast.
+#
+#  $1 ... starting forecast hour
+#  $2 ... ending   forecast hour
+#  $3 ... base field interval (hour)
+#  $4 ... regional field output interval (hour)
+#
+PROG=rfcst
+PARAMFILE=dummy
+#
+#  Execute forecast
+#
+h=$1
+hx=$2
+inchour=$3
+prthour=$4
+#
+ln -fs @MODEL_DIR@/bin/co2con                  r_co2con
+ln -fs @LIBS_DIR@/con/o3prod.clim.asc         r_o3prod
+ln -fs @LIBS_DIR@/con/o3loss.clim.asc         r_o3loss
+ln -fs @LIBS_DIR@/con/tune.t42l18.amip.ewmrg  r_tune
+ln -fs @LIBS_DIR@/con/gcmo3.asc               r_gcmo3
+ln -fs @MODEL_DIR@/bin/albaer.snl              albaer.snl
+ln -fs @MODEL_DIR@/bin/r_mtnvar                r_mtnvar
+#
+rm -f $PROG.x
+#
+if [ @MARCH@ = single -o @MARCH@ = thread ] ; then
+        executable=@MODEL_DIR@/bin/${PROG}_t@JCAP@k@LEVS@@IGRD@@JGRD@.x
+else
+        executable=@MODEL_DIR@/bin/${PROG}_t@JCAP@k@LEVS@@IGRD@@JGRD@_n${FCST_NPES}.x
+fi
+if [ ! -s $executable ] ; then
+        echo $executable does not exist
+        exit 8
+fi
+ln -fs $executable $PROG.x
+#
+here_dir=`pwd`
+if [ @MARCH@ = mpi -o @MARCH@ = hybrid ] ; then
+	@RUNSCR_DIR@/mpisub $PROG.x:$FCST_NPES:
+	cc=$?
+else
+	./$PROG.x 1>${PROG}out.ft$hx 2>&1
+	cc=$?
+fi
+if [ $cc -ne 0 ] ; then
+	echo "r_fcst failed" >>ERROR.out
+	exit 8
+fi
+grep 'NaN' rfcstout.ft$hx
+if [ $? -eq 0 ]; then
+        echo "The run has NaN crushed !!!" >> ERROR.out
+        exit 8
+fi
+grep ' nan ' rfcstout.ft$hx
+if [ $? -eq 0 ]; then
+        echo "The run has NaN crushed !!!" >> ERROR.out
+        exit 8
+fi
+grep '<WARNING>:' rfcstout.ft$hx >>ERROR.out
+#
+exit 0

@@ -1,0 +1,105 @@
+#!/bin/sh
+#
+set -x
+if [ $# -ne 1 -a $# -ne 2 ] ; then
+  echo "Usage: prmap [runscript rsm_domain.h] [C]"
+  exit 8
+fi
+file=$1
+RorC=$2
+if [ -z "$RorC" ] ; then
+	RorC=R
+fi
+#
+RPROJ=`grep "^${RorC}PROJ=" $file | cut -d"=" -f2`
+RTRUTH=`grep "^${RorC}TRUTH=" $file | cut -d"=" -f2`
+RORIENT=`grep "^${RorC}ORIENT=" $file | cut -d"=" -f2`
+RDELX=`grep "^${RorC}DELX=" $file | cut -d"=" -f2`
+RDELY=`grep "^${RorC}DELY=" $file | cut -d"=" -f2`
+RCENLAT=`grep "^${RorC}CENLAT=" $file | cut -d"=" -f2`
+RCENLON=`grep "^${RorC}CENLON=" $file | cut -d"=" -f2`
+RLFTGRD=`grep "^${RorC}LFTGRD=" $file | cut -d"=" -f2`
+RBTMGRD=`grep "^${RorC}BTMGRD=" $file | cut -d"=" -f2`
+#
+#
+echo $file | grep '\.h$' >/dev/null 2>/dev/null
+if [ $? -ne 0 ] ; then
+	echo $file | grep '/' >/dev/null
+	if [ $? -ne 0 ] ; then
+		configure_scr="./configure-scr"
+	else
+		configure_scr=`echo $file | sed 's?[^/]*$??g'`configure-scr
+	fi
+	if [ ! -s $configure_scr ] ; then
+		echo "configure_scr=$configure_scr does not exist"
+		exit 8
+	fi
+	SRCS_DIR=`grep "^SRCS_DIR=" $configure_scr | cut -d'=' -f2 | cut -d':' -f1`
+	IGRD=`grep '#define _igrd_ ' $SRCS_DIR/define.h | awk '{print $3}'`
+	JGRD=`grep '#define _jgrd_ ' $SRCS_DIR/define.h | awk '{print $3}'`
+	IGRD1=`expr $IGRD + 1`
+	JGRD1=`expr $JGRD + 1`
+else
+	area=`echo $file | cut -d'_' -f1`
+	igrdjgrd=`echo $file | cut -d'_' -f2`
+	res=`echo $file | cut -d'_' -f3 | sed 's/km//g'`
+	proj=`echo $file | cut -d'_' -f4 | sed 's/\.h//g'`
+	RDELX=${res}000
+	RDELY=${res}000
+	if [ $proj = merc ] ; then
+		PROJ=0
+	elif [ $proj = str ] ; then
+		PROJ=1
+	fi
+	if [ $igrdjgrd -ge 1000000 ] ; then
+		IGRD1=`echo $igrdjgrd | cut -c 1-4`
+		JGRD1=`echo $igrdjgrd | cut -c 5-7`
+	elif [ $igrdjgrd -ge 100000 -a $igrdjgrd -lt 1000000 ] ; then
+		IGRD1=`echo $igrdjgrd | cut -c 1-3`
+		JGRD1=`echo $igrdjgrd | cut -c 4-6`
+	elif [ $igrdjgrd -ge 10000 -a $igrdjgrd -lt 100000 ] ; then
+		IGRD1=`echo $igrdjgrd | cut -c 1-3`
+		if [ $IGRD -gt 500 ] ; then
+			IGRD1=`echo $igrdjgrd | cut -c 1-2`
+			JGRD1=`echo $igrdjgrd | cut -c 3-5`
+		else
+			JGRD1=`echo $igrdjgrd | cut -c 4-5`
+		fi
+	elif [ $igrdjgrd -lt 10000 ] ; then
+		IGRD1=`echo $igrdjgrd | cut -c 1-2`
+		JGRD1=`echo $igrdjgrd | cut -c 3-4`
+	fi
+fi
+#
+cat >prmap.parm <<EOF
+ &namloc
+ IGRD1=$IGRD1
+ JGRD1=$JGRD1
+ RPROJ=$RPROJ
+ RTRUTH=$RTRUTH
+ RORIENT=$RORIENT
+ RDELX=$RDELX
+ RDELY=$RDELY
+ RCENLAT=$RCENLAT
+ RCENLON=$RCENLON
+ RLFTGRD=$RLFTGRD
+ RBTMGRD=$RBTMGRD
+ &end
+EOF
+#
+dir=`echo $0 | sed 's?/[^/]*$??g'`
+currdir=`pwd`
+cd $dir
+PRMAPDIR=`pwd`
+echo "PRMAPDIR=$PRMAPDIR"
+export PRMAPDIR
+cd $currdir
+#
+$PRMAPDIR/prmap.x <prmap.parm 2>stderr$$.prmap
+cc=$?
+if [ $cc -ne 0 ] ; then
+  echo ' prmap execution failed'
+  exit 8
+fi
+rm stderr$$.prmap
+gradsc -l -c "open prmap.ctl"

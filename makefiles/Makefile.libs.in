@@ -1,0 +1,45 @@
+#
+#  Makefile to create libraries and constants for NCEP global and regional 
+#  system.
+#
+#  'make con' to create contants.
+#  'make gcon' to create gdas contants.
+#
+#  'make clean_lib' to clean up lib.
+#  'make clean_etc' to clean up etc.
+#  'make clean_con' to clean up constants.
+#  'make clean' to clean up lib, etc and con.
+#
+#  Author:  Masao Kanamitsu
+#  
+#  Date: 9/16/1998
+#  Modified: 1/31/1999
+#
+SHELL = @SHELL@
+AR = @AR@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CC = @CC@
+MKDIR = @MKDIR@
+CHMOD = @CHMOD@
+MAKE = @MAKE@
+#
+###################################################################
+#
+
+libs :
+	${CD} lib ; ${MAKE} || exit 8
+	${CD} etc ; ${MAKE} || exit 8
+	${CD} con ; ./makecon || exit 8
+
+clean :  
+	${CD} lib ; ${MAKE} clean
+	${CD} etc ; ${MAKE} clean
+
+clean_lib : 
+	${CD} lib ; ${MAKE} clean
+
+clean_etc : 
+	${CD} etc ; ${MAKE} clean
+

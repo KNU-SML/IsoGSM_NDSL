@@ -1,0 +1,53 @@
+#!/bin/sh
+#
+year=`date +%F | cut -c 1-4`
+month=`date +%F | cut -c 6-7`
+day=`date +%F | cut -c 9-10`
+hour=00
+cc=1
+while [ $cc -eq 1 ] ; do
+	echo year=$year month=$month day=$day hour=$hour
+	echo "Is this date and time OK? ==>(y/n)"
+	read yn
+	if [ "$yn" = n ] ; then
+		echo "Type year month day hour"
+		read year month day hour
+	else
+		cc=0
+	fi
+done
+#
+cat > ftp.dat.$$ <<EOF
+user anonymous kana@ucsd.edu
+cd /pub/data/nccf/com/gfs/prod/gfs.$year$month$day$hour
+hash
+EOF
+#
+if [ ! -s sanl.$year$month$day$hour.ieee ] ; then
+	echo "get gfs.t${hour}z.sanl sanl.$year$month$day$hour.ieee" >>ftp.dat.$$
+fi
+if [ ! -s sfcanl.$year$month$day$hour.ieee ] ; then
+	echo "get gfs.t${hour}z.sfcanl sfcanl.$year$month$day$hour.ieee" >>ftp.dat.$$
+fi
+if [ ! -s sstgrb.$year$month$day$hour ] ; then
+  echo "cd /pub/data/nccf/com/gfs/prod/gdas.$year$month$day" >>ftp.dat.$$
+	echo "get gdas1.t${hour}z.sstgrb sstgrb.$year$month$day$hour" >>ftp.dat.$$
+fi
+if [ ! -s icegrb.$year$month$day$hour ] ; then
+  echo "cd /pub/data/nccf/com/gfs/prod/gdas.$year$month$day" >>ftp.dat.$$
+	echo "get gdas1.t${hour}z.engicegrb icegrb.$year$month$day$hour" >>ftp.dat.$$
+fi
+if [ ! -s snogrb.$year$month$day$hour ] ; then
+  echo "cd /pub/data/nccf/com/gfs/prod/gdas.$year$month$day" >>ftp.dat.$$
+	echo "get gdas1.t${hour}z.snogrb snogrb.$year$month$day$hour" >>ftp.dat.$$
+fi
+echo "quit" >>ftp.dat.$$
+#
+ftp -n ftpprd.ncep.noaa.gov <ftp.dat.$$
+rm ftp.dat.$$
+echo $year $month $day $hour >ncepftp.out
+if [ $? -eq 0 ] ; then
+	echo "ftp success"
+else
+	echo "ftp failed.  try later."
+fi

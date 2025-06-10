@@ -1,0 +1,56 @@
+LIB = gsml_par.a
+
+OBJS = @OBJS_GSML@
+
+SRCS = ${OBJS:o=F}
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @MODEL_MPI_F77@
+FORT_FLAGS = @MODEL_MPI_FORT_FLAGS@
+LOAD_FLAGS = @MODEL_MPI_LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIBS_DIR@/lib
+INSTALL_DIR = @MODEL_DIR@/bin
+JCAP = @JCAP@
+LEVS = @LEVS@
+NPES = @NPES@
+
+.DEFAULT :
+	ln -fs ../gsml/$@ $@
+
+${LIB} : ${SRCS} ${OBJS}
+	${AR} -r $@ ${OBJS}
+	${CP} $@ ${INSTALL_DIR}
+	${CP} $@ ${INSTALL_DIR}/gsml_t${JCAP}k${LEVS}_n${NPES}.a ; \
+		${RM} -f ${INSTALL_DIR}/gsml_par.a ; \
+	ln -fs ${INSTALL_DIR}/gsml_t${JCAP}k${LEVS}_n${NPES}.a ${INSTALL_DIR}/gsml_par.a
+
+${OBJS} : ${SRCS}
+
+.SUFFIXES : .o .f .F
+
+.F.f :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f ; rm $*.i
+
+.F.o :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d;s/\/\*/\!/' $*.i >$*.f ; rm $*.i
+	${F77} ${FORT_FLAGS} -c $*.f
+.f.o :
+	${F77} ${FORT_FLAGS} -c $*.f
+
+clean :
+	- ${RM} -f *.f *.o .mod core *.a
+
+dist_clean :
+	- ${RM} -f *.f *.o *.mod *.a core Makefile
+	- ${RM} -rf rii_files

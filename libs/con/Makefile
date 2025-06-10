@@ -1,0 +1,202 @@
+SHELL = /bin/sh
+CP = cp
+
+F77 = ifort
+FORT_FLAGS = -r8 -O2 -convert big_endian -shared-intel -mcmodel=medium
+FTNID = fort.
+
+CON_DIR = /rhome/yeong/test/svrtest/libs/con
+
+ZFILES = clim.deepsoil.grib \
+				clim.glacier.grib \
+				clim.ice.grib \
+				clim.matthewalb.grib \
+				clim.maxice.grib \
+				clim.sibalbedo.grib \
+				clim.sibresis.grib \
+				clim.sibresis.old.grib \
+				clim.sibrough.grib \
+				clim.sibveg.grib \
+				clim.sibvegidx.grib \
+				clim.snow.grib \
+				clim.soiltype.grib \
+				clim.soilwet.grib \
+				clim.soilwet.r2.grib \
+				clim.soilwetcpc.grib \
+				clim.sst.50-97.grib \
+				clim.sst.grib \
+				clim.tg3.grib \
+				clim.vegfrac.grib \
+				clim.vegtype.grib \
+				clim.yhalbedo.grib \
+				clim.soiltype40m.grib \
+				clim.vegfrac40m.grib \
+				clim.vegtype40m.grib \
+				sstanl.900309.grib \
+				sstanl.900310.grib \
+				sstanl.900311.grib \
+				clim.maskh.grib \
+				clim.shdmax.grib \
+				clim.shdmin.grib \
+				clim.slptyp.grib \
+				clim.snoalb.grib \
+				slope.grib \
+				gcmo3.asc \
+				mdlv1e.asc \
+				aerdefb.asc \
+				sfcanl90030900.asc \
+				sigft0090030900.asc \
+				cns_350_490670.asc \
+				cns_350_490850.asc \
+				cns_350_670850.asc \
+				cns_348_490670.asc \
+				cns_348_490850.asc \
+				cns_348_670850.asc \
+				o3prod.clim.asc \
+				o3loss.clim.asc \
+				flwdirGSWP2.one \
+				flwdirGSWP2.hlf
+
+TFILES = E020N40 E020S10.slm E060S10 E100N40.slm E120S60 E140N90.slm \
+					E020N40.slm E060N40 E060S10.slm E100N90 E120S60.slm E140S10 \
+					E020N90 E060N40.slm E060S60 E100N90.slm E140N40 E140S10.slm \
+					E020N90.slm E060N90 E060S60.slm E100S10 E140N40.slm \
+					E020S10 E060N90.slm E100N40 E100S10.slm E140N90 \
+					W000S60 W020S10.slm W060S60 W100S10.slm W140S10 W180S10.slm \
+					W000S60.slm W060N40 W060S60.slm W120S60 W140S10.slm W180S60 \
+					W020N40 W060N40.slm W100N40 W120S60.slm W180N40 W180S60.slm \
+					W020N40.slm W060N90 W100N40.slm W140N40 W180N40.slm \
+					W020N90 W060N90.slm W100N90 W140N40.slm W180N90 \
+					W020N90.slm W060S10 W100N90.slm W140N90 W180N90.slm \
+					W020S10 W060S10.slm W100S10 W140N90.slm W180S10
+
+VFILES =  \
+glob.soil.bble.grib   glob.soil.qurtz.grib      glob.veg1typ.vegrt.grib \
+glob.soil.binf.grib   glob.soil.sden.grib       glob.veg1typ.vegtyp.grib \
+glob.soil.blkd.grib   glob.soil.silz.grib       glob.veg.lai.grib \
+glob.soil.cef.grib    glob.soil.smr.grib        glob.veg.rt1.grib \
+glob.soil.dph.grib    glob.soil.snwz.grib       glob.veg.rt2.grib \
+glob.soil.ds.grib     glob.soil.wcr.grib        glob.veg.rt3.grib \
+glob.soil.dsmax.grib  glob.soil.wpwp.grib       glob.veg.vegcov.grib \
+glob.soil.expt.grib   glob.soil.ws.grib \
+glob.soil.ksat.grib   glob.veg1typ.vegcov.grib \
+ldas.soil.bble.grib   ldas.soil.qurtz.grib      ldas.veg1typ.vegrt.grib \
+ldas.soil.binf.grib   ldas.soil.sden.grib       ldas.veg1typ.vegtyp.grib \
+ldas.soil.blkd.grib   ldas.soil.silz.grib       ldas.veg.lai.grib \
+ldas.soil.cef.grib    ldas.soil.smr.grib        ldas.veg.rt1.grib \
+ldas.soil.dph.grib    ldas.soil.snwz.grib       ldas.veg.rt2.grib \
+ldas.soil.ds.grib     ldas.soil.wcr.grib        ldas.veg.rt3.grib \
+ldas.soil.dsmax.grib  ldas.soil.wpwp.grib       ldas.veg.vegcov.grib \
+ldas.soil.expt.grib   ldas.soil.ws.grib \
+ldas.soil.ksat.grib   ldas.veg1typ.vegcov.grib
+
+FILES = ${CON_DIR}/top8m_avg.20i4.asc.Z \
+				${CON_DIR}/top8m_max.20i4.asc.Z \
+				${CON_DIR}/top8m_slm.80i1.asc.Z \
+				${CON_DIR}/top8m_var.20i4.asc.Z \
+				${CON_DIR}/cns_348_490850.asc.Z \
+				${CON_DIR}/cns_348_670850.asc.Z \
+				${CON_DIR}/tune.t42l18.amip.ewmrg
+
+R_ZFILES = clim.vegfrac20m.grib \
+					clim.soiltype20m.grib \
+					clim.vegtype20m.grib \
+					sigft0690030900.asc \
+					sigft1290030900.asc \
+					sigft1890030900.asc \
+					sigft2490030900.asc \
+					sigft3090030900.asc \
+					sigft3690030900.asc \
+					sigft4290030900.asc \
+					sigft4890030900.asc
+
+R_FILES = ${CON_DIR}/top4m_avg.20i4.asc.Z \
+				${CON_DIR}/top4m_max.20i4.asc.Z \
+				${CON_DIR}/top4m_slm.80i1.asc.Z \
+				${CON_DIR}/top4m_var.20i4.asc.Z \
+				${CON_DIR}/era40_19900309.grib
+
+ROMS_ZFILES = ${CON_DIR}/hcs_ofes-grid.nc.Z \
+                        etopo5.nc.Z \
+                        global-grid.nc.Z \
+                        global_avg_0045.nc.Z
+
+ROMS_FILES = hcs_ofes-grid.nc \
+	hcs_ofes-bry-soda.nc \
+	hcs_ofes-forc-ncep.nc \
+	hcs_ofes-init-soda.nc
+
+con : ${FILES} ${ZFILES}
+
+rcon : ${R_FILES} ${R_ZFILES}
+
+romcon : ${ROMS_FILES} ${ROMS_ZFILES}
+
+tcon : ${TFILES}
+
+vcon : ${VFILES}
+
+${CON_DIR}/tune.t42l18.amip.ewmrg : tune.sh
+	./tune.sh 
+
+${CON_DIR}/tune1.mardec95_vvsyn : tunen.sh
+	./tunen.sh 
+
+G_FILES = ${CON_DIR}/landsea \
+					${CON_DIR}/eofs28126 \
+					${CON_DIR}/divterrs2812645
+
+G_ZFILES =	bges78120100.asc \
+						sges78120100.asc \
+						prepbufr78120100.bufr \
+						sstanl.781201.grib \
+						snowanl.781201.grib\
+						iceanl.781201.grib\
+						oiqcerr.asc \
+						ssierr.asc \
+						v28newx.asc \
+						waypts.asc \
+						clim.sst.gaut62.grib \
+						blacklist_197812.asc \
+						blacklist_197901.asc \
+						blacklist_197902.asc \
+						blacklist_197903.asc \
+						blacklist_197904.asc \
+						blacklist_197905.asc \
+						blacklist_197906.asc \
+						blacklist_197907.asc \
+						blacklist_197908.asc \
+						blacklist_197909.asc \
+						blacklist_197910.asc \
+						blacklist_197911.asc \
+						blacklist_197912.asc
+
+gcon : ${G_FILES} ${G_ZFILES}
+
+${CON_DIR}/landsea : 
+			./landsea.sh || exit 8
+
+${CON_DIR}/eofs28126 : 
+			./eofs.sh  || exit 8
+
+${CON_DIR}/divterrs2812645 : 
+			./divterrs.sh  || exit 8
+
+clean :
+	- rm -f ${CON_DIR}/[cgils]*.grib  ${CON_DIR}/*.asc ${CON_DIR}/*.bufr
+	- rm -f ${CON_DIR}/tune.t42l18.amip.ewmrg
+	- rm -f ${CON_DIR}/tune.t62l28.reanl.ewmrg
+	- rm -f ${CON_DIR}/tune1.mardec95_vvsyn
+	- rm -f ${CON_DIR}/*.ieee
+	- rm -rf rii_files
+
+.SUFFIXES :
+
+.SUFFIXES : .Z
+
+.Z:
+	if [ linux = mac ] ; then \
+		zcat $< >${CON_DIR}/$*  || exit 8 ; \
+	else \
+		uncompress -c $< >${CON_DIR}/$*  || exit 8 ; \
+	fi

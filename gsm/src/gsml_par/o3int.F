@@ -1,0 +1,395 @@
+#define IGRD12 igrd12
+#define IGRD12P igrd12p
+#define IGRD1P igrd1p
+#define IGRD igrd
+#define JCAP jcap
+#define JGRD12P jgrd12p
+#define JGRD1P jgrd1p
+#define LEVS levs
+#define LNT2 lnt2
+#define LONFP lonfp
+      subroutine o3int(o3o3,sigl)
+#ifdef CRAY_THREAD
+cfpp$ noconcur r
+#endif
+c$$$  subprogram documentation block
+c                .      .    .                                       .
+c subprogram:    o3int       compute zonal mean ozone for sigma lyrs
+c   prgmmr: kenneth campana  org: w/nmc23    date: 89-07-07
+c
+c abstract: this code written at gfdl...
+c   calculates seasonal zonal mean ozone,every 5 deg of latitude,
+c   for current model vertical coordinate. output data in g/g * 1.e4
+c   code is called only once.
+c
+c program history log:
+c   84-01-01  fels and schwarzkopf,gfdl.
+c   89-07-07  k. campana - adapted stand-alone code for in-line use.
+c
+c usage:    call o3int(o3,sigl)
+c   input argument list:
+c     sigl     - layer sigma (k=1 is lowest model layer)
+c   output argument list:
+c     o3       - zonal mean ozone data in all model layers (g/g*1.e4)
+c                dimensioned(l,n,is),where l(=37) is latitude between
+c                n and s poles,n=num of vertical lyrs(k=1 is top lyr)
+c                ,and is(=4) defines the season-win,spr,sum,fall.
+c
+c   output files:
+c     output   - print file.
+c
+c attributes:
+c   language: fortran 200.
+c   machine:  cyber 205.
+c
+c$$$
+c....     program o3int from dan schwarzkopf-gets zonal mean o3
+c..       code adapted for mrf use, in-line.....    k.a.c. june 1989
+c....     launcher======subroutine o3int(t41,o3o3)
+c..    output o3 is winter,spring,summer,fall (northern hemisphere)
+#include <paramodel.h>
+#include <comio.h>
+#include <rdparm.h>
+c     *********************************************************
+c       save data on permanent data set denoted by co222 ****
+c          ..... k.campana   october 1988
+cccc  dimension t41(lp2,2),o3o3(37,l,4)
+      dimension sigl(l),o3o3(37,l,4)
+c     *********************************************************
+      dimension qi(82)
+      dimension dduo3n(19,l),ro31(10,41),ro32(10,41),duo3n(19,41)
+      dimension tempn(19)
+      dimension o3hi(10,25),o3lo1(10,16),o3lo2(10,16),o3lo3(10,16),
+     1          o3lo4(10,16)
+      dimension o3hi1(10,16),o3hi2(10,9),ph1(45),ph2(37),p1(48),p2(33)
+      dimension o35deg(37,l)
+      dimension rstd(81),ro3(10,41),ro3m(10,40),rbar(l),rdata(81),
+     1 phalf(lp1),pstd(lp2),p(81),ph(82)
+      equivalence (o3hi1(1,1),o3hi(1,1)),(o3hi2(1,1),o3hi(1,17))
+      equivalence (ph1(1),ph(1)),(ph2(1),ph(46))
+      equivalence (p1(1),p(1)),(p2(1),p(49))
+      data ph1/      0.,
+     1     0.1027246e-04, 0.1239831e-04, 0.1491845e-04, 0.1788053e-04,
+     1     0.2135032e-04, 0.2540162e-04, 0.3011718e-04, 0.3558949e-04,
+     1     0.4192172e-04, 0.4922875e-04, 0.5763817e-04, 0.6729146e-04,
+     1     0.7834518e-04, 0.9097232e-04, 0.1053635e-03, 0.1217288e-03,
+     1     0.1402989e-03, 0.1613270e-03, 0.1850904e-03, 0.2119495e-03,
+     1     0.2423836e-03, 0.2768980e-03, 0.3160017e-03, 0.3602623e-03,
+     1     0.4103126e-03, 0.4668569e-03, 0.5306792e-03, 0.6026516e-03,
+     1     0.6839018e-03, 0.7759249e-03, 0.8803303e-03, 0.9987843e-03,
+     1     0.1133178e-02, 0.1285955e-02, 0.1460360e-02, 0.1660001e-02,
+     1     0.1888764e-02, 0.2151165e-02, 0.2452466e-02, 0.2798806e-02,
+     1     0.3197345e-02, 0.3656456e-02, 0.4185934e-02, 0.4797257e-02/
+      data ph2/
+     1     0.5503893e-02, 0.6321654e-02, 0.7269144e-02, 0.8368272e-02,
+     1     0.9644873e-02, 0.1112946e-01, 0.1285810e-01, 0.1487354e-01,
+     1     0.1722643e-01, 0.1997696e-01, 0.2319670e-01, 0.2697093e-01,
+     1     0.3140135e-01, 0.3660952e-01, 0.4274090e-01, 0.4996992e-01,
+     1     0.5848471e-01, 0.6847525e-01, 0.8017242e-01, 0.9386772e-01,
+     1     0.1099026e 00, 0.1286765e 00, 0.1506574e 00, 0.1763932e 00,
+     1     0.2065253e 00, 0.2415209e 00, 0.2814823e 00, 0.3266369e 00,
+     1     0.3774861e 00, 0.4345638e 00, 0.4984375e 00, 0.5697097e 00,
+     1     0.6490189e 00, 0.7370409e 00, 0.8344896e 00, 0.9421190e 00,
+     1     0.1000000e 01/
+      data p1/
+     1     0.9300000e-05, 0.1129521e-04, 0.1360915e-04, 0.1635370e-04,
+     1     0.1954990e-04, 0.2331653e-04, 0.2767314e-04, 0.3277707e-04,
+     1     0.3864321e-04, 0.4547839e-04, 0.5328839e-04, 0.6234301e-04,
+     1     0.7263268e-04, 0.8450696e-04, 0.9793231e-04, 0.1133587e-03,
+     1     0.1307170e-03, 0.1505832e-03, 0.1728373e-03, 0.1982122e-03,
+     1     0.2266389e-03, 0.2592220e-03, 0.2957792e-03, 0.3376068e-03,
+     1     0.3844381e-03, 0.4379281e-03, 0.4976965e-03, 0.5658476e-03,
+     1     0.6418494e-03, 0.7287094e-03, 0.8261995e-03, 0.9380076e-03,
+     1     0.1063498e-02, 0.1207423e-02, 0.1369594e-02, 0.1557141e-02,
+     1     0.1769657e-02, 0.2015887e-02, 0.2295520e-02, 0.2620143e-02,
+     1     0.2989651e-02, 0.3419469e-02, 0.3909867e-02, 0.4481491e-02,
+     1     0.5135272e-02, 0.5898971e-02, 0.6774619e-02, 0.7799763e-02/
+      data p2/
+     1     0.8978218e-02, 0.1036103e-01, 0.1195488e-01, 0.1382957e-01,
+     1     0.1599631e-01, 0.1855114e-01, 0.2151235e-01, 0.2501293e-01,
+     1     0.2908220e-01, 0.3390544e-01, 0.3952926e-01, 0.4621349e-01,
+     1     0.5403168e-01, 0.6330472e-01, 0.7406807e-01, 0.8677983e-01,
+     1     0.1015345e 00, 0.1189603e 00, 0.1391863e 00, 0.1630739e 00,
+     1     0.1908004e 00, 0.2235461e 00, 0.2609410e 00, 0.3036404e 00,
+     1     0.3513750e 00, 0.4055375e 00, 0.4656677e 00, 0.5335132e 00,
+     1     0.6083618e 00, 0.6923932e 00, 0.7845676e 00, 0.8875882e 00,
+     1     0.1000000e 01/
+      data o3hi1/
+     * .55,.50,.45,.45,.40,.35,.35,.30,.30,.30,
+     * .55,.51,.46,.47,.42,.38,.37,.36,.35,.35,
+     * .55,.53,.48,.49,.44,.42,.41,.40,.38,.38,
+     * .60,.55,.52,.52,.50,.47,.46,.44,.42,.41,
+     * .65,.60,.55,.56,.53,.52,.50,.48,.45,.45,
+     * .75,.65,.60,.60,.55,.55,.55,.50,.48,.47,
+     * .80,.75,.75,.75,.70,.70,.65,.63,.60,.60,
+     * .90,.85,.85,.80,.80,.75,.75,.74,.72,.71,
+     * 1.10,1.05,1.00,.90,.90,.90,.85,.83,.80,.80,
+     * 1.40,1.30,1.25,1.25,1.25,1.20,1.15,1.10,1.05,1.00,
+     * 1.7,1.7,1.6,1.6,1.6,1.6,1.6,1.6,1.5,1.5,
+     * 2.1,2.0,1.9,1.9,1.9,1.8,1.8,1.8,1.7,1.7,
+     * 2.4,2.3,2.2,2.2,2.2,2.1,2.1,2.1,2.0,2.0,
+     * 2.7,2.5,2.5,2.5,2.5,2.5,2.4,2.4,2.3,2.3,
+     * 2.9,2.8,2.7,2.7,2.7,2.7,2.7,2.7,2.6,2.6,
+     * 3.1,3.1,3.0,3.0,3.0,3.0,3.0,3.0,2.9,2.8/
+      data o3hi2/
+     * 3.3,3.4,3.4,3.6,3.7,3.9,4.0,4.1,4.0,3.8,
+     * 3.6,3.8,3.9,4.2,4.7,5.3,5.6,5.7,5.5,5.2,
+     * 4.1,4.3,4.7,5.2,6.0,6.7,7.0,6.8,6.4,6.2,
+     * 5.4,5.7,6.0,6.6,7.3,8.0,8.4,7.7,7.1,6.7,
+     * 6.7,6.8,7.0,7.6,8.3,10.0,9.6,8.2,7.5,7.2,
+     * 9.2,9.3,9.4,9.6,10.3,10.6,10.0,8.5,7.7,7.3,
+     * 12.6,12.1,12.0,12.1,11.7,11.0,10.0,8.6,7.8,7.4,
+     * 14.2,13.5,13.1,12.8,11.9,10.9,9.8,8.5,7.8,7.5,
+     * 14.3,14.0,13.4,12.7,11.6,10.6,9.3,8.4,7.6,7.3/
+      data o3lo1/
+     * 14.9,14.2,13.3,12.5,11.2,10.3,9.5,8.6,7.5,7.4,
+     * 14.5,14.1,13.0,11.8,10.5,9.8,9.2,7.9,7.4,7.4,
+     * 11.8,11.5,10.9,10.5,9.9,9.6,8.9,7.5,7.2,7.2,
+     * 7.3,7.7,7.8,8.4,8.4,8.5,7.9,7.4,7.1,7.1,
+     * 4.1,4.4,5.3,6.6,6.9,7.5,7.4,7.2,7.0,6.9,
+     * 1.8,1.9,2.5,3.3,4.5,5.8,6.3,6.3,6.4,6.1,
+     * 0.4,0.5,0.8,1.2,2.7,3.6,4.6,4.7,5.0,5.2,
+     * .10,.15,.20,.50,1.4,2.1,3.0,3.2,3.5,3.9,
+     * .07,.10,.12,.30,1.0,1.4,1.8,1.9,2.3,2.5,
+     * .06,.08,.10,.15,.60,.80,1.4,1.5,1.5,1.6,
+     * .05,.05,.06,.09,.20,.40,.70,.80,.90,.90,
+     * .05,.05,.06,.08,.10,.13,.20,.25,.30,.40,
+     * .05,.05,.05,.06,.07,.07,.08,.09,.10,.13,
+     * .05,.05,.05,.05,.06,.06,.06,.06,.07,.07,
+     * .05,.05,.05,.05,.05,.05,.05,.06,.06,.06,
+     * .04,.04,.04,.04,.04,.04,.04,.05,.05,.05/
+      data o3lo2/
+     * 14.8,14.2,13.8,12.2,11.0,9.8,8.5,7.8,7.4,6.9,
+     * 13.2,13.0,12.5,11.3,10.4,9.0,7.8,7.5,7.0,6.6,
+     * 10.6,10.6,10.7,10.1,9.4,8.6,7.5,7.0,6.5,6.1,
+     * 7.0,7.3,7.5,7.5,7.5,7.3,6.7,6.4,6.0,5.8,
+     * 3.8,4.0,4.7,5.0,5.2,5.9,5.8,5.6,5.5,5.5,
+     * 1.4,1.6,2.4,3.0,3.7,4.1,4.6,4.8,5.1,5.0,
+     * .40,.50,.90,1.2,2.0,2.7,3.2,3.6,4.3,4.1,
+     * .07,.10,.20,.30,.80,1.4,2.1,2.4,2.7,3.0,
+     * .06,.07,.09,.15,.30,.70,1.2,1.4,1.6,2.0,
+     * .05,.05,.06,.12,.15,.30,.60,.70,.80,.80,
+     * .04,.05,.06,.08,.09,.15,.30,.40,.40,.40,
+     * .04,.04,.05,.055,.06,.09,.12,.13,.15,.15,
+     * .03,.03,.045,.052,.055,.06,.07,.07,.06,.07,
+     * .03,.03,.04,.051,.052,.052,.06,.06,.05,.05,
+     * .02,.02,.03,.05,.05,.05,.04,.04,.04,.04,
+     * .02,.02,.02,.04,.04,.04,.03,.03,.03,.03/
+      data o3lo3/
+     * 14.5,14.0,13.5,11.3,11.0,10.0,9.0,8.3,7.5,7.3,
+     * 13.5,13.2,12.5,11.1,10.4,9.7,8.2,7.8,7.4,6.8,
+     * 10.8,10.9,11.0,10.4,10.0,9.6,7.9,7.5,7.0,6.7,
+     * 7.3,7.5,7.8,8.5,9.0,8.5,7.7,7.4,6.9,6.5,
+     * 4.1,4.5,5.3,6.2,7.3,7.7,7.3,7.0,6.6,6.4,
+     * 1.8,2.0,2.2,3.8,4.3,5.6,6.2,6.2,6.4,6.2,
+     * .30,.50,.60,1.5,2.8,3.7,4.5,4.7,5.5,5.6,
+     * .09,.10,.15,.60,1.2,2.1,3.0,3.5,4.0,4.3,
+     * .06,.08,.10,.30,.60,1.1,1.9,2.2,2.9,3.0,
+     * .04,.05,.06,.15,.45,.60,1.1,1.3,1.6,1.8,
+     * .04,.04,.04,.08,.20,.30,.55,.60,.75,.90,
+     * .04,.04,.04,.05,.06,.10,.12,.15,.20,.25,
+     * .04,.04,.03,.04,.05,.06,.07,.07,.07,.08,
+     * .03,.03,.04,.05,.05,.05,.05,.05,.05,.05,
+     * .03,.03,.03,.04,.04,.04,.05,.05,.04,.04,
+     * .02,.02,.02,.04,.04,.04,.04,.04,.03,.03/
+      data o3lo4/
+     * 14.2,13.8,13.2,12.5,11.7,10.5,8.6,7.8,7.5,6.6,
+     * 12.5,12.4,12.2,11.7,10.8,9.8,7.8,7.2,6.5,6.1,
+     * 10.6,10.5,10.4,10.1,9.6,9.0,7.1,6.8,6.1,5.9,
+     * 7.0,7.4,7.9,7.8,7.6,7.3,6.2,6.1,5.8,5.6,
+     * 4.2,4.6,5.1,5.6,5.9,5.9,5.9,5.8,5.6,5.3,
+     * 2.1,2.3,2.6,2.9,3.5,4.3,4.8,4.9,5.1,5.1,
+     * 0.7,0.8,1.0,1.5,2.0,2.8,3.5,3.6,3.7,4.0,
+     * .15,.20,.40,.50,.60,1.4,2.1,2.2,2.3,2.5,
+     * .08,.10,.15,.25,.30,.90,1.2,1.3,1.4,1.6,
+     * .07,.08,.10,.14,.20,.50,.70,.90,.90,.80,
+     * .05,.06,.08,.12,.14,.20,.35,.40,.60,.50,
+     * .05,.05,.08,.09,.09,.09,.11,.12,.15,.18,
+     * .04,.05,.06,.07,.07,.08,.08,.08,.08,.08,
+     * .04,.04,.05,.07,.07,.07,.07,.07,.06,.05,
+     * .02,.02,.04,.05,.05,.05,.05,.05,.04,.04,
+     * .02,.02,.03,.04,.04,.04,.04,.04,.03,.03/
+c***read in user-specified pressures,in mb. this can be output from ptz
+ckac ..  file 41 from ptz(psfc=1013.25 mb)
+606   format (5e16.9)
+ccc      read (8,606) (pstd(k),k=1,lp2)
+ccc      read (8,606) (phalf(k),k=1,lp1)
+co222  ***************************************************
+      pss=1013.250e0
+      pstd(1) = 0.e0
+      pstd(lp2) = pss
+      do 202 k=2,lp1
+        pstd(k) = sigl(lp2-k) * pss
+  202 continue
+      phalf(1) = 0.e0
+      phalf(lp1) = pss
+      do 204 k=1,lm1
+        phalf(k+1) = 0.5e0 * (pstd(k+1)+pstd(k+2))
+  204 continue
+ckac  do 300 k=1,lp2
+ckac    pstd(k) = t41(k,1)
+ck300 continue
+ckac  do 301 k=1,lp1
+ckac    phalf(k) = t41(k,2)
+ck301 continue
+cc          rewind 66
+co222  ***************************************************
+      nkk=41
+      nk=81
+      nkp=nk+1
+      do 24 k=1,lp1
+      phalf(k)=phalf(k)*1.0e 03
+   24 pstd(k)=pstd(k+1)*1.0e 03
+      do 25 k=1,nk
+      ph(k)=ph(k)*1013250.
+   25 p(k)=p(k)*1013250.
+      ph(nkp)=ph(nkp)*1013250.
+#ifndef RSM
+#ifdef DBG
+      if( iope ) write (6,3) (phalf(k),k=1,lp1)
+      if( iope ) write (6,3) (pstd(k),k=1,lp1)
+#endif
+#endif
+c***load arrays ro31,ro32,as in dicks pgm.
+      do 1010 k=1,25
+      do 1010 n=1,10
+        ro31(n,k)=o3hi(n,k)
+        ro32(n,k)=o3hi(n,k)
+1010  continue
+c
+      do 3000 ncase=1,4
+      itape=ncase+50
+      iplace=2
+      if (ncase.eq.2) iplace=4
+      if (ncase.eq.3) iplace=1
+      if (ncase.eq.4) iplace=3
+c***ncase=1: spring (in n.h.)
+c***ncase=2: fall   (in n.h.)
+c***ncase=3: winter (in n.h.)
+c***ncase=4: summer (in n.h.)
+      if (ncase.eq.1.or.ncase.eq.2) then
+         do 1011 k=26,41
+         do 1011 n=1,10
+           ro31(n,k)=o3lo1(n,k-25)
+           ro32(n,k)=o3lo2(n,k-25)
+1011     continue
+      endif
+      if (ncase.eq.3.or.ncase.eq.4) then
+         do 1031 k=26,41
+         do 1031 n=1,10
+           ro31(n,k)=o3lo3(n,k-25)
+           ro32(n,k)=o3lo4(n,k-25)
+1031     continue
+      endif
+      do 30 kk=1,nkk
+      do 31 n=1,10
+      duo3n(n,kk)=ro31(11-n,kk)
+   31 duo3n(n+9,kk)=ro32(n,kk)
+      duo3n(10,kk)=.5*(ro31(1,kk)+ro32(1,kk))
+   30 continue
+c***for ncase=2 or ncase=4,reverse latitude arrangement of corr. season
+      if (ncase.eq.2.or.ncase.eq.4) then
+         do 1024 kk=1,nkk
+         do 1025 n=1,19
+           tempn(n)=duo3n(20-n,kk)
+1025     continue
+         do 1026 n=1,19
+           duo3n(n,kk)=tempn(n)
+1026     continue
+1024     continue
+      endif
+c***duo3n now is o3 profile for appropriate season,at std. pressure
+c      levels
+c***begin latitude (10 deg) loop
+      do 33 n=1,19
+      do 22 kk=1,nkk
+   22 rstd(kk)=duo3n(n,kk)
+      nkm=nk-1
+      nkmm=nk-3
+c     bessels half-point interpolation formula
+      do 60 k=4,nkmm,2
+      ki=k/2
+   60 rdata(k)=.5*(rstd(ki)+rstd(ki+1))-(rstd(ki+2)-rstd(ki+1)-rstd(ki)+
+     1rstd(ki-1))/16.
+      rdata(2)=.5*(rstd(2)+rstd(1))
+      rdata(nkm)=.5*(rstd(nkk)+rstd(nkk-1))
+c     put unchanged data into new array
+      do 61 k=1,nk,2
+      kq=(k+1)/2
+   61 rdata(k)=rstd(kq)
+c---note to nmc: this write is commented out to reduce printout
+c     calculate layer-mean ozone mixing ratio for each model level
+      do 99 kk=1,l
+      rbar(kk)=0.
+c     loop to calculate sums to get layer ozone mean
+      do 98 k=1,nk
+      if(ph(k+1).lt.phalf(kk)) go to 98
+      if(ph(k).gt.phalf(kk+1)) go to 98
+      if(ph(k+1).lt.phalf(kk+1).and.ph(k).lt.phalf(kk)) rbar(kk)=rbar(kk
+     1)+rdata(k)*(ph(k+1)-phalf(kk))
+      if(ph(k+1).lt.phalf(kk+1).and.ph(k).ge.phalf(kk)) rbar(kk)=rbar(k
+     1k)+rdata(k)*(ph(k+1)-ph(k))
+      if(ph(k+1).gt.phalf(kk+1).and.ph(k).gt.phalf(kk)) rbar(kk)=rbar(k
+     1k)+rdata(k)*(phalf(kk+1)-ph(k))
+   98 continue
+      rbar(kk)=rbar(kk)/(phalf(kk+1)-phalf(kk))
+      if(rbar(kk).gt..0000) go to 99
+c     code to cover case when model resolution is so fine that no value
+c     of p(k) in the ozone data array falls between phalf(kk+1) and
+c     phalf(kk).   procedure is to simply grab the nearest value from
+c     rdata
+      do 29 k=1,nk
+      if(ph(k).lt.phalf(kk).and.ph(k+1).ge.phalf(kk+1)) rbar(kk)=rdata(k
+     1)
+   29 continue
+   99 continue
+c     calculate total ozone
+      o3rd=0.
+      do 89 kk=1,80
+   89 o3rd=o3rd+rdata(kk)*(ph(kk+1)-ph(kk))
+      o3rd=o3rd+rdata(81)*(p(81)-ph(81))
+      o3rd=o3rd/980.
+      o3tot=0.
+      do 88 kk=1,l
+   88 o3tot=o3tot+rbar(kk)*(phalf(kk+1)-phalf(kk))
+      o3tot=o3tot/980.
+c     units are micrograms/cm**2
+      o3du=o3tot/2.144
+c     o3du units are dobson units (10**-3 atm-cm)
+c--note to nmc: this is commented out to save printout
+c     write (6,796) o3rd,o3tot,o3du
+      do 23 kk=1,l
+   23 dduo3n(n,kk)=rbar(kk)*.01
+   33 continue
+c***end of latitude loop
+c
+c***create 5 deg ozone quantities by linear interpolation of
+c      10 deg values
+      do 1060 kk=1,l
+        do 1061 n=1,19
+          o35deg(2*n-1,kk)=dduo3n(n,kk)
+1061    continue
+        do 1062 n=1,18
+          o35deg(2*n,kk)=0.5*(dduo3n(n,kk)+dduo3n(n+1,kk))
+1062    continue
+1060  continue
+c***output to unit (itape) the ozone values for later use
+cc          write (66) o35deg
+      do 302 jj=1,37
+       do 302 ken=1,l
+        o3o3(jj,ken,iplace) = o35deg(jj,ken)
+  302 continue
+3000  continue
+c***end of loop over cases
+      return
+   1  format(10f4.2)
+    2 format(10x,e14.7,1x,e14.7,1x,e14.7,1x,e14.7,1x)
+   3  format(10e12.5)
+c 796 format(3e12.5)
+  797 format(10f7.2)
+c 798 format(20f6.2)
+  799 format(19f6.4)
+  800 format(19f6.2)
+  101 format(5x,1h*,f6.5,1h,,f6.5,1h,,f6.5,1h,,f6.5,1h,,f6.5,1h,,f6.5,
+     *1h,,f6.5,1h,,f6.5,1h,,f6.5,1h,)
+      end

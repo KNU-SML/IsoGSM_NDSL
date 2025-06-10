@@ -1,0 +1,26 @@
+c
+      common/rmpijk/ 
+     1    igrdn(igrd12_,jgrd12_,levs_)
+     2   ,jgrdn(igrd12_,jgrd12_,levs_)
+     3   ,kgrdn(igrd12_,jgrd12_,levs_)
+     4   ,lnwavn(lnwav_,levs_)
+     4   ,lnwav2n(lnwav_,levs_)
+     4   ,klnwavn(lnwav_,levs_)     
+     5   ,rlngrdn(lngrd_)
+     6   ,lngrdbn(lngrdb,levs_)                                    
+#ifdef MP
+     1   ,igrdnp(igrd12p_,jgrd12p_,levsp_)
+     2   ,jgrdnp(igrd12p_,jgrd12p_,levsp_)
+     3   ,kgrdnp(igrd12p_,jgrd12p_,levsp_)
+     4   ,lnwavnp(lnwavp_,levs_)
+     4   ,klnwavnp(lnwavp_,levs_)
+     5   ,rlngrdnp(lngrdp_)
+     5   ,lngrdn2p(igrd12p_,jgrd12p_)     
+     6   ,llwavnp(llwavp_,levsp_)
+     6   ,kllwavnp(llwavp_,levsp_)     
+     6   ,llwav2np(llwavp_,levsp_)      
+     8   ,lmype(0:npes_-1)
+     8   ,kmype(0:npes_-1)
+     8   ,imype(0:npes_-1)
+     8   ,jmype(0:npes_-1)                                    
+#endif     

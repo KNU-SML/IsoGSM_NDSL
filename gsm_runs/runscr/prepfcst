@@ -1,0 +1,25 @@
+#!/bin/sh
+if [ $# -ne 1 ] ; then
+	echo $0:error in the number of arguments
+	exit 8
+fi
+PROG=fcst
+FCST_NPES=$1
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/co2con                 co2con
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/mtnvar                 mtnvar
+ln -fs /rhome/yeong/test/svrtest/libs/con/o3prod.clim.asc        o3prod
+ln -fs /rhome/yeong/test/svrtest/libs/con/o3loss.clim.asc        o3loss
+ln -fs /rhome/yeong/test/svrtest/libs/con/tune.t42l18.amip.ewmrg tune
+ln -fs /rhome/yeong/test/svrtest/libs/con/gcmo3.asc              gcmo3
+ln -fs /rhome/yeong/test/svrtest/libs/con/flwdirGSWP2.one        flw
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/albaer.snl             albaer.snl
+rm -f $PROG.x
+if [ mpi = mpi -o mpi = hybrid ] ; then
+	if [ ! -s /rhome/yeong/test/svrtest/gsm/bin/${PROG}_t62k28_n$FCST_NPES.x ] ; then
+	  echo /rhome/yeong/test/svrtest/gsm/bin/${PROG}_t62k28_n$FCST_NPES.x does not exist
+	  exit 8
+	fi
+	ln -fs /rhome/yeong/test/svrtest/gsm/bin/${PROG}_t62k28_n$FCST_NPES.x $PROG.x
+else
+	ln -fs /rhome/yeong/test/svrtest/gsm/bin/${PROG}.x $PROG.x
+fi

@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# make nhm topography
+#
+#echo '        CAUTION  '
+#echo ' if you need SiB vegetation file,'
+#echo '  (1) link /home1/fo/nh02/GLCC/Data/gsib2_0ll.img to glcc '
+#echo ' '
+#echo '  please check using GrADS with Control file < glcc-sib_zs_sl.ctl > '
+#echo ' '
+#
+PROG=nhm_mtn
+ln -fs @LIBS_DIR@/con/nhm/gsib2_0ll.img glcc
+ln -fs @LIBS_DIR@/con/nhm gtopo
+ln -fs @MODEL_DEFINE@/domain.card $PROG.parm
+ln -fs @MODEL_DIR@/bin/$PROG.x $PROG.x
+./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	echo "`date` $0: Execution failed."
+	exit 8
+fi
+rm -f glcc gtopo
+mv @FTNID@80 org.rsm
+mv GLCC-SiB GLCC-SiB.rsm

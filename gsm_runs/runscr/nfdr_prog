@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+condir=/rhome/yeong/test/svrtest/libs/con
+#
+ft=$1
+gribfile=nfdr.frcng.ft$ft
+grib_binary=nfdr.forcing.ieee
+wgrib $gribfile | wgrib $gribfile -ieee -i -o $grib_binary
+
+PROG=nfdr_prog
+cat >rsm.parm <<EOF
+ &NAMLOC
+ RPROJ    = $RPROJ,
+ RTRUTH   = $RTRUTH,
+ RORIENT  = $RORIENT,
+ RDELX    = $RDELX,
+ RDELY    = $RDELY,
+ RCENLAT  = $RCENLAT,
+ RCENLON  = $RCENLON,
+ RLFTGRD  = $RLFTGRD,
+ RBTMGRD  = $RBTMGRD,
+/
+EOF
+cat >$PROG.parm <<EOF
+ &NAMNFDR
+ condir=$condir
+/
+EOF
+cat rsm.parm >>$PROG.parm
+if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+  assign -R
+fi
+rm -f $PROG.x
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/$PROG.x $PROG.x
+./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+  echo "`date` $0: Execution failed." >>ERROR.out
+  exit 8
+fi
+exit 0

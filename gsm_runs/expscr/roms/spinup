@@ -1,0 +1,91 @@
+#!/bin/sh
+#PBS -l nodes=1:ppn=36
+ cd \$PBS_O_WORKDIR
+ export LANG=C
+#
+ulimit -s unlimited
+#
+set -ax
+#
+# this script makes 48 hour coupled integration of GSM and RSM starting from an example initial
+# condition. ideal for first testing the system on a new mpi computer system.
+#
+# Note that this is an mpi2 execution of two independent executable, but communication will
+# take place between the two executables during the integration.
+#
+# If mpi2 is not installed, this script does not work.
+#
+# ---------------  user changeable parameters ------------------------
+#
+# Change the following variable if you are running separate experiments
+# from the same directory
+#
+RUNNAME=SPINUP_CAL
+#
+ROMS_NPES=36
+#
+ROMS_DT=600
+ROMS_NRST_DAY=30
+ROMS_NHIS_DAY=30
+ROMS_NAVG_DAY=30
+ROMS_SIMU_DAY=360
+YYYYS=1994
+YYYYE=2003
+#
+ROMS_NRST=`expr $ROMS_NRST_DAY \* 86400 \/ $ROMS_DT`
+ROMS_NHIS=`expr $ROMS_NHIS_DAY \* 86400 \/ $ROMS_DT`
+ROMS_NAVG=`expr $ROMS_NAVG_DAY \* 86400 \/ $ROMS_DT`
+ROMS_NTIMES=`expr $ROMS_SIMU_DAY \* 86400 \/ $ROMS_DT`
+#
+#
+# Begin the loop of multi-years spinup
+YYYY=$YYYYS
+while [ $YYYY -le $YYYYE ] ; do
+	EXECDIR=/rhome/yeong/test/svrtest/gsm_runs/$RUNNAME/$YYYY
+	mkdir -p $EXECDIR 
+	cd $EXECDIR
+	#
+	#  generate grid specification, initial and boundary files
+	#
+	/rhome/yeong/test/svrtest/gsm_runs/runscr/roms_preprocess_cal $YYYY || exit 8
+	#
+	# Model may terminate abnormally, rename ocean_his and ocean_nc as G-RSM.
+	/rhome/yeong/test/svrtest/gsm_runs/runscr/renamenc  || exit 8
+	#
+	if [ -s ocean_rst.nc ] ; then
+        	NRREC=0
+        	LDEFOUT=T
+        	ln -fs ocean_rst.nc   init.nc || exit 8
+	else
+        	NRREC=0
+        	LDEFOUT=T
+		if [ $YYYY -gt $YYYYS ] ; then
+			PREYR=`expr $YYYY - 1`
+			ln -fs ../$PREYR/init-spinup01.nc init.nc || exit 8
+		fi
+	fi
+	#
+	#  prepare for roms execution
+	#
+	/rhome/yeong/test/svrtest/gsm_runs/runscr/preproms || exit 8
+	#
+	/rhome/yeong/test/svrtest/gsm_runs/runscr/romsparm $ROMS_NTIMES $ROMS_DT $ROMS_NRST $ROMS_NHIS $ROMS_NAVG $NRREC || exit 8
+	#
+	#  Execute forecast
+	#
+	/rhome/yeong/test/svrtest/gsm_runs/runscr/roms  || exit 8
+	#
+	#  rename the ocean_his & ocean_avg as G-RSM
+	/rhome/yeong/test/svrtest/gsm_runs/runscr/renamenc  || exit 8
+	#
+	#  extract initial conditon for next year
+	ln -fs /rhome/yeong/test/svrtest/gsm/bin/oceanini.x oceanini.x
+	./oceanini.x
+	#
+	if [ linux = mac -a mpi = mpi ] ; then
+        	lamclean
+        	lamhalt
+	fi
+
+	YYYY=`expr $YYYY + 1`
+done

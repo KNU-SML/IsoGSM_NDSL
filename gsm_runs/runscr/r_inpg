@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+set -x
+#
+if [ $# -ne 3 ] ; then
+	echo $0: wrong number of arguments
+fi
+SFCFTYP=$1
+INGSIG=`echo $2 | cut -d':' -f1`
+INGSFC=`echo $2 | cut -d':' -f2`
+OUTRSIG=`echo $3 | cut -d':' -f1`
+OUTRSFC=`echo $3 | cut -d':' -f2`
+#
+PROG=rinpg
+echo " &NAMRIN                                         "  >$PROG.parm
+echo "    SFCFTYP='$SFCFTYP',                          " >>$PROG.parm
+echo "/                                                " >>$PROG.parm
+cat rsm.parm >>$PROG.parm
+rm -f fort.[0-9]* 2>/dev/null
+if [ linux = cray -o linux = t90 ] ; then
+	assign -R
+fi
+ln -fs $INGSIG                           fort.11
+ln -fs $INGSFC                           fort.12
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/r_smooth_oroggd         fort.14
+ln -fs $OUTRSIG                          fort.51
+ln -fs $OUTRSFC                          fort.52
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/r_slmsk                 r_slmsk
+rm $PROG.x 2>/dev/null
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/$PROG.x $PROG.x
+./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo `date` - $PROG execution failed >>ERROR.out
+	exit 8
+fi

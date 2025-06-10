@@ -1,0 +1,55 @@
+LIB = sfcl_par.a
+
+OBJS = @OBJS_SFCL@
+
+SRCS = ${OBJS:o=F}
+
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+AR = @AR@
+CP = @CP@
+RM = @RM@
+CD = @CD@
+CHMOD = @CHMOD@
+
+CC = @CC@
+CPP = @CPP@
+F77 = @MODEL_MPI_F77@
+FORT_FLAGS = @MODEL_MPI_FORT_FLAGS@
+LOAD_FLAGS = @MODEL_MPI_LOAD_FLAGS@
+INCLUDE_DIR = @INCLUDE_DIR@
+LIB_DIR = @LIBS_DIR@/lib
+INSTALLDLIB = @MODEL_DIR@/bin
+
+.DEFAULT :
+	ln -fs ../sfcl/$@ $@
+
+${LIB} : ${SRCS} ${OBJS}
+	${AR} -r $@ ${OBJS}
+	${CP} $@ ${INSTALLDLIB}
+
+${OBJS} : ${SRCS}
+
+depend :
+	${LIB_DIR}/../etc/mkdep
+
+.SUFFIXES : .o .f .F
+
+.F.f :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d' $*.i >$*.f ; rm $*.i
+
+.F.o :
+	${CPP} -P ${INCLUDE_DIR} $*.F >$*.i
+	sed '/^ *$$/d' $*.i >$*.f ; rm $*.i
+	${F77} ${FORT_FLAGS} -c $*.f
+
+.f.o :
+	${F77} ${FORT_FLAGS} -c $*.f
+
+clean :
+	- ${RM} -f *.f *.o *.a core
+
+dist_clean :
+	- ${RM} -f *.f *.o *.x *.a core Makefile
+	- ${RM} -rf rii_files

@@ -1,0 +1,473 @@
+#!/bin/sh
+#PBS -l nodes=1:ppn=36
+ cd \$PBS_O_WORKDIR
+ export LANG=C
+#
+ulimit -s unlimited
+#
+#  this script makes ensemble hindcasts from R-2.  Monthly averages
+#  are computed and results are archived to given ftp site
+#
+set -ax
+#
+# ---------------  User changeable parameters  -------------------------
+#
+# run directory
+#
+RUNNAME=c_000
+#
+# Initial year, month, day, hour of the first ensemble member
+#
+YYYYSTART=1999
+YYYYEND=1999
+LENMON=2
+MMSS=07
+DDSS=01
+HHSS=00
+#
+# Number of members in an ensemble
+#
+NENS=1 
+#
+# Ensemble initial condition time interval
+#
+INCENS=12
+#
+#  Initial conditions and sst sea_ice and snow
+#
+#  Atmospheric Initial condition
+#
+INITIAL_SIG_PLATFORM=
+INITIAL_SIG_PROTOCOL=msrcp
+INITIAL_SIG=mss:/MASAO/FCST/data/sig.anl.\$YYYYS\$MMS\$DDS\$HHS.ieee
+INITIAL_SFC=mss:/MASAO/FCST/data/sfc.anl.\$YYYYS\$MMS\$DDS\$HHS.ieee
+INPUT_RESOLUTION=t62k28
+INITIAL_SFC_FILE_TYPE=osu1
+#
+# sst, ice and snow specificatinos
+#
+# sst
+#
+SST_FTP=msrcp
+SST_PLATFORM=
+SST_ANL_T0=mss:/MASAO/FCST/data/sst.grib
+SST_ANL=mss:/MASAO/FCST/data/sst.grib
+#
+#  sea ice
+#
+# uncomment the following and modify to use observed or persistent sea ice
+#   ice is climatology in this example
+#
+ICE_PLATFORM=
+ICE_FTP=ln
+ICE_ANL_T0=
+ICE_ANL=/rhome/yeong/test/svrtest/libs/con/clim.ice.grib
+#
+#  snow
+#
+SNO_PLATFORM=
+SNO_FTP=
+SNO_ANL_T0=
+SNO_ANL=
+SCV_ANL_T0=
+SCV_ANL=
+#
+#  output for archive
+#
+ARCHIVE_PLATFORM=filler
+ARCHIVE_FTP_PROTOCOL=msrcp
+ARCHIVE_DIR=mss:/MASAO/FCST/r01
+#
+# Intervals of sfc execution, sigma output, sfc output and flx output
+#
+INTSFCX=24
+INTSIG=6
+INTSFC=6
+INTPOST=24
+INTRESTART=24
+INCHOUR=384
+#
+# ---------  Below for expert user only ---------------------
+#
+FCST_RESTART=yes
+#
+# If you wish, you may modify EXPDIR to /tmp directory and keep these
+# scripts on your permanent disk.
+#
+EXPDIR=/rhome/yeong/test/svrtest/gsm_runs/$RUNNAME
+#
+EXTVARS=no
+#
+#  choice of arcihve fiels and interval
+#
+#  different archive possible before forecast hour $FHR_1ST_END
+#
+FHR_1ST_END=744
+FTP_SIG_1ST=no
+FTP_SFC_1ST=no
+FTP_ZNL_1ST=no
+FTP_FLX_1ST=no
+FTP_DIA_1ST=no
+FTP_KEN_1ST=no
+FTP_PGB_1ST=no
+FTP_SGB_1ST=no
+FTP_FCSTOUT_1ST=no
+FTP_EXTVARS_1ST=no
+#
+FTP_SIG_2ND=no
+FTP_SFC_2ND=no
+FTP_ZNL_2ND=no
+FTP_FLX_2ND=no
+FTP_DIA_2ND=no
+FTP_KEN_2ND=no
+FTP_PGB_2ND=no
+FTP_SGB_2ND=no
+FTP_FCSTOUT_2ND=no
+FTP_EXTVARS_2ND=no
+#
+LIST_OF_FILES='sig sfc znl flx dia ken pgb sgb fcstout extvars'
+export LIST_OF_FILES
+#
+#  files to be kept in the run directory
+#
+FILES_TO_BE_KEPT=
+#FILES_TO_BE_KEPT='flx pgb znl dia ken sgb extvars'
+export FILES_TO_BE_KEPT
+#
+#  grib files to be averaged (monthly)
+#
+FILES_TO_BE_AVERAGED='flx pgb'
+export FILES_TO_BE_AVERAGED
+#
+# -------  do not edit below  ------------------------------
+#
+FCST_NPES=36
+#
+mkdir -p $EXPDIR 2>/dev/null
+scrnam=`echo $0 | sed 's?.*/??g'`
+cp $0 $EXPIR/0LOG.$scrnam
+ls -l /rhome/yeong/test/svrtest/gsm/bin >$EXPDIR/0LOG.bindates
+#
+if [ $DDSS -gt 15 ] ; then
+	LENMON=`expr $LENMON + 1`
+fi
+#
+#  Loop for year
+#
+YYYYSS=$YYYYSTART
+while [ $YYYYSS -le $YYYYEND ] ; do
+	#
+	# Compute ending year, month, day
+	#
+	YYYYS=$YYYYSS
+	MMS=$MMSS
+	DDS=$DDSS
+	HHS=$HHSS
+	MME=`expr $MMS + $LENMON`
+	if [ $MME -gt 12 ] ; then
+		YYYYE=`expr $YYYYS + 1`
+		MME=`expr $MME - 12`
+	else
+		YYYYE=$YYYYS
+	fi
+	if [ $MME -lt 10 ] ; then
+		MME=0$MME
+	fi
+	DDE=01
+	HHE=00
+	#
+	#  Loop for ensemble member
+	#
+	YYYY=$YYYYS
+	MM=$MMS
+	DD=$DDS
+	HH=$HHS
+	nens=1
+	while [ $nens -le $NENS ] ; do
+		#
+		YMDH=$YYYY$MM$DD$HH
+		#
+		#  obtain forecast hours for various ending dates
+		#
+		. /rhome/yeong/test/svrtest/gsm_runs/runscr/endfhrs
+		#
+		mkdir -p $EXPDIR/$YMDH
+		cd $EXPDIR/$YMDH || exit 8
+		#
+		# Forecast section
+		#
+		if [ -s sigit -a -s sigitdt -a -s sfci -a "$FCST_RESTART" = yes ];then
+			h=`/rhome/yeong/test/svrtest/gsm_runs/runscr/restart` || exit 8
+		else
+			#
+			#  fetch sigma and sfc files
+			#
+			initial_sig=`eval echo $INITIAL_SIG`
+			initial_sfc=`eval echo $INITIAL_SFC`
+			/rhome/yeong/test/svrtest/gsm_runs/runscr/fetchfile $initial_sig ./initial_sig_glb \
+				$INITIAL_SIG_PROTOCOL $INITIAL_SIG_PLATFORM || exit 8
+			/rhome/yeong/test/svrtest/gsm_runs/runscr/fetchfile $initial_sfc ./initial_sfc_glb \
+				$INITIAL_SIG_PROTOCOL $INITIAL_SIG_PLATFORM || exit 8
+			#
+			# Conversion to binary
+			#
+			FILE_FORMAT=`echo $INITIAL_SIG | sed 's/.*\.//g'`
+			if [ "$FILE_FORMAT" != ascii -a \ 
+					"$FILE_FORMAT" != asc -a \ 
+					"$FILE_FORMAT" != ieee -a \
+					"$FILE_FORMAT" != ieee_dp -a \
+					"$FILE_FORMAT" != ieee_sgi -a \
+					"$FILE_FORMAT" != cray ] ; then
+				FILE_FORMAT=bin
+			fi
+			/rhome/yeong/test/svrtest/libs/etc/scnvrt gsm $INITIAL_SFC_FILE_TYPE \
+				62:192:94:28 \
+				$YYYY:-1:01:00:0 \
+				$FILE_FORMAT:bin initial_sig_glb:initial_sfc_glb \
+				initial_sig_bin:initial_sfc_bin || exit 8
+			#
+			# Change resolution
+			#
+			/rhome/yeong/test/svrtest/gsm_runs/runscr/chgr \
+					initial_sig_bin initial_sfc_bin \
+					sigit sfci \
+					$INITIAL_SFC_FILE_TYPE || exit 8
+					cp sigit sigitdt
+					cp sigit sig.ft00
+					cp sfci sfc.ft00
+			#
+			#  Delete used sigma files
+			#
+			rc=0
+			for filex in $FILES_TO_BE_KEPT
+			do
+				if [ $filex = sig ] ; then
+					rc=1
+				fi
+			done
+			if [ $rc -eq 0 ] ; then
+				/rhome/yeong/test/svrtest/gsm_runs/runscr/delfile sig 00 00 $INTSFCX || exit 8
+			fi
+			#
+			h=00
+		fi
+		#
+		inchour_orig=$INCHOUR
+		#
+		#  loop
+		#
+		xc=0
+		while [ $h -lt $ENDHOUR ] ; do
+			#
+			INCHOUR=$inchour_orig
+			#
+			# modify INCHOUR so that 00Z is output time
+			#
+			if [ $h = 00 -a $HHS != 00 ] ; then
+				hhs=`expr $HHS + 0`
+				INCHOUR=`expr 24 - $hhs`
+			fi
+			hx=`expr $h + $INCHOUR`
+			#
+			# modify INCHOUR so that the forecast end at the end of year
+			# this is necessary for matching sst.grib file
+			#
+			if [ $YEAREND -gt $h -a $YEAREND -le $hx ] ; then
+				INCHOUR=`expr $YEAREND - $h`
+			fi
+			hx=`expr $h + $INCHOUR`
+			if [ $hx -gt $ENDHOUR ] ; then
+				hx=$ENDHOUR
+			fi
+			if [ $hx -lt 10 ];then hx=0$hx;fi
+			echo "`date` $0: fcst from $h to $hx started" >>ERROR.out
+			#
+			# obtain sst, ice and snow for the current verifying year
+			#
+			/rhome/yeong/test/svrtest/libs/etc/incdte $YYYY $MM $DD $HH $h >incdte.$$ || exit 8
+			read YYYYC dummy dummy dummy <incdte.$$ ; rm incdte.$$
+			mkdir -p $EXPDIR/$YYYYC  2>/dev/null
+			#  
+			if [ $h -eq 0 ] ;then
+				for fld in sst sno scv ice
+				do
+					FLD=`echo $fld | tr '[a-z]' '[A-Z]'`
+					anl_t0=\$${FLD}_ANL_T0
+					anl_t0=`eval echo $anl_t0`
+					anl_t0=`eval echo $anl_t0`
+					anl=\$${FLD}_ANL
+					anl=`eval echo $anl`
+					anl=`eval echo $anl`
+					ftp=\$${FLD}_FTP
+					ftp=`eval echo $ftp`
+					platform=\$${FLD}_PLATFORM
+					platform=`eval echo $platform`
+					if [ -n "$anl_t0" -a ! -s $EXPDIR/$YYYYC/$fld.grib ] ; then
+						if [ $ftp != ln ] ; then
+							/rhome/yeong/test/svrtest/gsm_runs/runscr/fetchfile  \
+								$anl $EXPDIR/$YYYYC/$fld.grib \
+								$ftp $platform || exit 8
+								eval ${FLD}_GRB_T0=$EXPDIR/$YYYYC/$fld.grib
+						else
+							eval ${FLD}_GRB_T0=$anl_t0
+						fi
+					elif [ -n "$anl_t0" -a -s $EXPDIR/$YYYYC/$fld.grib ] ; then
+						eval ${FLD}_GRB_T0=$EXPDIR/$YYYYC/$fld.grib
+					else
+						eval ${FLD}_GRB_T0=
+					fi
+					if [ -n "$anl" -a ! -s $EXPDIR/$YYYYC/$fld.grib ] ; then
+						if [ $ftp != ln ] ; then
+							/rhome/yeong/test/svrtest/gsm_runs/runscr/fetchfile  \
+								$anl $EXPDIR/$YYYYC/$fld.grib \
+								$ftp $platform || exit 8
+								eval ${FLD}_GRB=$EXPDIR/$YYYYC/$fld.grib
+						else
+							eval ${FLD}_GRB=$anl
+						fi
+					elif [ -n "$anl" -a -s $EXPDIR/$YYYYC/$fld.grib ] ; then
+						eval ${FLD}_GRB=$EXPDIR/$YYYYC/$fld.grib
+					else
+						eval ${FLD}_GRB=
+					fi
+				done
+				export SST_GRB_T0 SNO_GRB_T0 ICE_GRB_T0
+				/rhome/yeong/test/svrtest/gsm_runs/runscr/sfc0 sfci sfco $INITIAL_SFC_FILE_TYPE || exit 8
+				mv sfco sfci
+			fi
+			#
+			# define ftp output choices (function of $hx)
+			#
+			if [ $hx -le $FHR_1ST_END ] ; then
+				FTP_SIG=$FTP_SIG_1ST
+				FTP_SFC=$FTP_SFC_1ST
+				FTP_ZNL=$FTP_ZNL_1ST
+				FTP_FLX=$FTP_FLX_1ST
+				FTP_DIA=$FTP_DIA_1ST
+				FTP_KEN=$FTP_KEN_1ST
+				FTP_PGB=$FTP_PGB_1ST
+				FTP_SGB=$FTP_SGB_1ST
+				FTP_FCSTOUT=$FTP_FCSTOUT_1ST
+				FTP_EXTVARS=$FTP_EXTVARS_1ST
+			else
+				FTP_SIG=$FTP_SIG_2ND
+				FTP_SFC=$FTP_SFC_2ND
+				FTP_ZNL=$FTP_ZNL_2ND
+				FTP_FLX=$FTP_FLX_2ND
+				FTP_DIA=$FTP_DIA_2ND
+				FTP_KEN=$FTP_KEN_2ND
+				FTP_PGB=$FTP_PGB_2ND
+				FTP_SGB=$FTP_SGB_2ND
+				FTP_FCSTOUT=$FTP_FCSTOUT_2ND
+				FTP_EXTVARS=$FTP_EXTVARS_2ND
+			fi
+			export FTP_SIG FTP_SFC FTP_ZNL FTP_FLX FTP_DIA FTP_KEN FTP_PGB FTP_SGB \
+					FTP_FCSTOUT FTP_EXTVARS
+			#
+			#  create fcst.parm
+			#
+			export SST_GRB SNO_GRB ICE_GRB
+			/rhome/yeong/test/svrtest/gsm_runs/runscr/fcstparm $INCHOUR $ENDHOUR $INTSFCX \
+														$INTSIG:$INTSFC:$INTPOST:$INTRESTART || exit 8
+	 		#
+	 		#  Execute forecast
+	 		#
+			/rhome/yeong/test/svrtest/gsm_runs/runscr/fcst || exit 8
+	 	  #
+	 		set -e
+			cp sig.ft$hx sigit
+	 		mv sigp.ft$hx sigitdt
+	 		cp sfc.ft$hx sfci
+			if [ " " = DEFINED ] ; then
+				/rhome/yeong/test/svrtest/libs/etc/catpgb
+			fi
+	 		set +e
+	 		#
+	 		#  post processing of the forecasts (pgb and average)
+	 		#
+			archive_dir=`eval echo $ARCHIVE_DIR`
+	 		/rhome/yeong/test/svrtest/gsm_runs/runscr/cpost batch $EXPDIR/$YMDH \
+	 					$YYYY:$MM:$DD:$HH:$h:$hx:$INTSFCX \
+	 					$ENDHOUR:$INCHOUR:$INTPOST:$INTSIG \
+	 					$archive_dir $ARCHIVE_PLATFORM \
+						$ARCHIVE_FTP_PROTOCOL || exit 8
+	 	  #
+	 	  #  Delete old short archive files
+	 	  #
+			rc=0
+			for filex in $FILES_TO_BE_KEPT
+			do
+				if [  $filex = pgb ] ; then
+					rc=1
+				fi
+			done
+			rd=0
+			for filex in $FILES_TO_BE_AVERAGED
+			do
+				if [  $filex = pgb ] ; then
+					rd=1
+				fi
+			done
+			keepsig=yes
+			if [ $rc -eq 0 -a $rd -eq 0 ] ; then
+				keepsig=no
+			fi
+	 	  for file in $LIST_OF_FILES
+	 	  do
+				FILE=`echo $file | tr '[a-z]' '[A-Z]'`
+				ftp=\$FTP_$FILE
+				ftp=`eval echo $ftp`
+				if [ $ftp = yes ] ; then
+					continue
+				fi
+				rc=0
+				for filex in $FILES_TO_BE_KEPT
+				do
+					if [ $filex = $file ] ; then
+						rc=1
+					fi
+				done
+				if [ $rc -eq 1 ] ; then
+					  continue
+				fi
+				for filex in $FILES_TO_BE_AVERAGED
+				do
+					if [ $filex = $file ] ; then
+						rc=1
+					fi
+				done
+				if [ $rc -eq 1 ] ; then
+					  continue
+				fi
+				if [ $file = sig -a $keepsig = yes ] ; then
+					continue
+				fi
+				hxx=$hx
+				intvl=$INTPOST
+				if [ $file = sfc ] ; then
+				    intvl=$INTSFC
+				elif [ $file = sfcanl ] ; then
+				    intvl=$INTSFCX
+					hxx=`expr $hx - $INTSFCX`
+				fi
+				if [ $hxx -ge 0 ] ; then
+					/rhome/yeong/test/svrtest/gsm_runs/runscr/delfile $file $h $hxx $intvl || exit 8
+				fi
+	 	  done
+	 	  h=$hx
+		done
+		#
+		nens=`expr $nens + 1`
+		/rhome/yeong/test/svrtest/libs/etc/incdte $YYYY $MM $DD $HH $INCENS >incdte.out$$ || exit 8
+		read YYYY MM DD HH <incdte.out$$
+		rm incdte.out$$
+		YYYYS=$YYYY
+		MMS=$MM
+		DDS=$DD
+		HHS=$HH
+	done
+	YYYYSS=`expr $YYYYSS + 1`
+done
+wait
+rm *.parm *.x cpost* *.ft00 ftp* model_* *.ieee
+echo "`date` $0: ended"

@@ -1,0 +1,92 @@
+#!/bin/sh
+set -x
+#
+total=0
+for arg
+do
+	total=`expr $total + 1`
+	prog=`echo $arg | cut -d':' -f1`
+	npes=`echo $arg | cut -d':' -f2`
+	parm=`echo $arg | cut -d':' -f3`
+	eval prog$total=$prog
+	eval npes$total=$npes
+	eval parm$total=$parm
+done
+#
+testnodes=no
+here_dir=`pwd`
+#
+cnt=1
+TOTAL_NPES=0
+while [ $cnt -le $total ] ; do
+	prog_npes=\$npes${cnt}
+	prog_npes=`eval echo $prog_npes`
+	TOTAL_NPES=`expr $TOTAL_NPES + $prog_npes`
+	cnt=`expr $cnt + 1`
+done
+x=`expr $TOTAL_NPES + 1 \- 1`
+n=`expr $x \/ 1 + 1`
+#
+sed -n "1,${TOTAL_NPES}p" $HOME/node_list >$here_dir/hostfile
+#
+which mpdboot 2>/dev/null
+cc=$?
+if [ $cc -eq 0 ] ; then
+	sed 's/^/ssh /g' $here_dir/hostfile | sed 's/:.*//g' | sed 's/$/ "mpdallexit"/g' | sort -u >mpdexit.sh
+	chmod a+x mpdexit.sh
+	./mpdexit.sh
+	mpdallexit
+fi
+if [ "$testnodes" = yes ] ; then
+	sed 's/^/ssh /g' $here_dir/hostfile | sed 's/$/ "date"/g' | sort -u >force_mount.sh
+	chmod a+x force_mount.sh
+	./force_mount.sh
+fi
+if [ $cc -eq 0 ] ; then
+if [ roses = imtf4 ] ; then
+	mpdboot
+else
+	mpdboot -n $n -f $here_dir/hostfile
+fi
+fi
+#
+args=
+outs=out
+cnt=0
+while [ $cnt -lt $total ] ; do
+	cnt=`expr $cnt + 1`
+	prog=\$prog${cnt}
+	prog=`eval echo $prog`
+	npes=\$npes${cnt}
+	npes=`eval echo $npes`
+	parm=\$parm$cnt
+	parm=`eval echo $parm`
+	colon=
+	if [ $cnt -gt 1 ] ; then
+		colon=':'
+	fi
+if [ roses = naam ] ; then
+	args="$args $colon $prog $parm"
+else
+	args="$args $colon -np $npes $prog $parm"
+fi
+	#
+	# remove .* from $prog for beautification
+	#
+	nprog=`echo $prog | sed 's/\..*//g'` 
+	outs="$outs-$nprog"
+done
+#
+heredir=`pwd`
+#
+# remove .x from outs
+#
+echo $args
+mpirun  -hostfile $PBS_NODEFILE $args 1>$here_dir/$outs.ft$hx 2>&1
+cc=$?
+#
+./mpdexit.sh
+mpdallexit
+if [ $cc -eq 0 ] ; then
+	exit 0
+fi

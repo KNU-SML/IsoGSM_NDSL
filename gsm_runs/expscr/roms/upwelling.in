@@ -1,0 +1,36 @@
+#insert-HEADER
+#
+set -ax
+#
+# this script makes 48 hour coupled integration of GSM and RSM starting from an example initial
+# condition. ideal for first testing the system on a new mpi computer system.
+#
+# Note that this is an mpi2 execution of two independent executable, but communication will
+# take place between the two executables during the integration.
+#
+# If mpi2 is not installed, this script does not work.
+#
+# ---------------  user changeable parameters ------------------------
+#
+# Change the following variable if you are running separate experiments
+# from the same directory
+#
+RUNNAME=ROMS_000
+#
+mkdir $RUNNAME
+cd $RUNNAME
+#
+ROMS_NPES=@NPES@
+#
+#  prepare for rsm execution
+#
+@RUNSCR_DIR@/preproms
+#
+#  Execute forecast
+#
+@RUNSCR_DIR@/roms 
+#
+if [ @MACHINE@ = mac -a @MARCH@ = mpi ] ; then
+        lamclean
+        lamhalt
+fi

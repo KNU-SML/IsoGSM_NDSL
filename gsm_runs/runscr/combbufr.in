@@ -1,0 +1,35 @@
+#!/bin/sh
+#
+PROG=combbufr
+echo `date` -- $PROG started  >>ERROR.out
+rm combbufr_bufr_output 2>/dev/null
+if [ @MACHINE@ = cray -o @MACHINE@ = t90 -o @MACHINE@ = t3e ] ; then
+	assign -R
+	assign -a bufr_sfcsat             -Fcos @FTNID@20
+	assign -a bufr_adpupa_cqc_output  -Fcos @FTNID@21
+	assign -a bufr_aircft_acqc_output -Fcos @FTNID@22
+	assign -a combbufr_bufr_output    -Fcos @FTNID@50
+else
+	rm -f @FTNID@[0-9]* 2>/dev/null
+	ln -fs bufr_sfcsat             @FTNID@20
+	ln -fs bufr_adpupa_cqc_output  @FTNID@21
+	ln -fs bufr_aircft_acqc_output @FTNID@22
+	ln -fs combbufr_bufr_output    @FTNID@50
+fi
+if [ @MACHINE@ = cray -o @MACHINE@ = t90 -o @MACHINE@ = t3e ] ; then
+	NCPUS=1
+	export NCPUS
+fi
+#
+echo 3 >$PROG.parm
+#
+rm -f $PROG.x
+ln -fs @SRCS_DIR@/bin/${PROG}.x $PROG.x
+./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+if [ @MACHINE@ != cray -a @MACHINE@ != t90 -o @MACHINE@ != t3e ] ; then
+	rm -f @FTNID@[0-9]* 2>/dev/null
+fi

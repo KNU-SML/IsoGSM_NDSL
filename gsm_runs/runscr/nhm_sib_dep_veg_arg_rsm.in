@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# make Sib distribution file of rsm
+#
+PROG=nhm_sib_dep_veg_arg_rsm
+rm @FTNID@* 2>/dev/null
+ln -fs ./flatflon_rsm.dat                @FTNID@20
+ln -fs ./rsm_geopt.dat                   @FTNID@25
+ln -fs @LIBS_DIR@/con/nhm/typ_cgcm3.ctl  @FTNID@30
+ln -fs @LIBS_DIR@/con/nhm/typ_cgcm3.gd   @FTNID@35
+ln -fs $OUTER_RSM_SRCS_DIR/define.h      @FTNID@50
+#
+ln -fs @MODEL_DIR@/bin/$PROG.x $PROG.x
+./$PROG.x 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	echo "`date` $0: Execution failed."
+	exit 8
+fi

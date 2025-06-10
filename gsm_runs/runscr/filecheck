@@ -1,0 +1,115 @@
+#!/bin/sh
+#
+# this script should be called as '. filecheck' to return
+# variables in the calling script
+#
+/rhome/yeong/test/svrtest/libs/etc/nmcdate $YYYY $MM $DD $HH >nmcdate  || exit 8
+#
+/rhome/yeong/test/svrtest/libs/etc/incdte $YYYY $MM $DD $HH -24 >incdte.$$ || exit 8
+read YYYYM24 MMM24 DDM24 HHM24 <incdte.$$
+/rhome/yeong/test/svrtest/libs/etc/incdte $YYYY $MM $DD $HH -12 >incdte.$$ || exit 8
+read YYYYM12 MMM12 DDM12 HHM12 <incdte.$$
+/rhome/yeong/test/svrtest/libs/etc/incdte $YYYY $MM $DD $HH  12 >incdte.$$ || exit 8
+read YYYYP12 MMP12 DDP12 HHP12 <incdte.$$
+/rhome/yeong/test/svrtest/libs/etc/incdte $YYYY $MM $DD $HH  24 >incdte.$$ || exit 8
+read YYYYP24 MMP24 DDP24 HHP24 <incdte.$$ 
+/rhome/yeong/test/svrtest/libs/etc/incdte $YYYY $MM $DD $HH  -6 >incdte.$$ || exit 8
+read YYYYM6 MMM6 DDM6 HHM6 <incdte.$$
+rm incdte.$$ 2>/dev/null
+#
+#    9.1 bufr file
+#
+if [ ! -s obcycle.anl.$YYYY$MM$DD$HH.bufr ] ; then
+	echo "obcycle.anl.$YYYY$MM$DD$HH.bufr NOT FOUND" >>ERROR.out
+	exit 8
+fi
+#
+#    9.2 sigguess, sfcguess and sig.anl(6-hour earlier).  
+#        Missing sig.anl is not fatal
+#
+if [ ! -s $SIG_GUESS ] ; then
+	echo "$SIG_GUESS not found" >>ERROR.out
+	exit 8
+fi
+if [ ! -s $SFC_GUESS ] ; then
+	echo "$SFC_GUESS not found" >>ERROR.out
+	exit 8
+fi
+if [ ! -s "$SIG_ANL_PREV" ] ; then
+	echo "$SIG_ANL_PREV not found --- non fatal" >>ERROR.out
+fi
+#
+#    9.3 SST analysis
+#
+if [ ! -s $SST_GRB ] ; then
+	echo "$SST_GRB not found" >>ERROR.out
+	exit 8
+fi
+#
+#    9.4 SNOW COVER analysis
+#
+if [ ! -s $SCV_GRB ] ; then
+	echo "$SCV_GRB not found" >>ERROR.out
+	exit 8
+fi
+#
+#    9.5 SEA ICE FRACTION analysis
+#
+if [ ! -s $ICE_GRB ] ; then
+	echo "$ICE_GRB not found" >>ERROR.out
+	exit 8
+fi
+#
+#    9.6  Convert guess sigma and sfc from given format to machine binary
+#
+#    9.6.1 Guess files
+#
+fmt=`echo $SIG_GUESS | sed 's/.*\.//g'`
+if [ $fmt = bin ] ; then
+   cp $SIG_GUESS guessig
+   cp $SFC_GUESS guessfc
+else
+	/rhome/yeong/test/svrtest/libs/etc/scnvrt gsm $SFCFTYP  \
+                62:192:94:28 \
+                -1:-1:-1:-1:-1 \
+                $fmt:bin $SIG_GUESS:$SFC_GUESS \
+                guessig:guessfc || exit 8
+fi
+#
+#    9.6.2 6-hour earlier analysis files (for time interpolation of guess)
+#     Note that sfc file is not needed.
+#
+rm sig.anl-6hr sfc.anl-6hr 2>/dev/null
+fmt=`echo $SIG_ANL_PREV | sed 's/.*\.//g'`
+if [ $fmt = bin ] ; then
+   cp $SIG_ANL_PREV sig.anl-6hr
+else
+	if [ -s $SIG_ANL_PREV  ] ; then
+		rm dummy 2>/dev/null
+		/rhome/yeong/test/svrtest/libs/etc/scnvrt gsm $SFCFTYP  \
+									62:192:94:28 \
+									-1:-1:-1:-1:-1 \
+									$fmt:bin $SIG_ANL_PREV:dummy \
+									sig.anl-6hr:dummy || exit 8
+	fi
+fi
+#
+#    9.7 Check pentad model precipitation
+#
+if [ $PRECIPITATION_SOIL_ADJUSTMENT = yes ] ; then
+  nnum=`grep -n "$MM$DD" /rhome/yeong/test/svrtest/libs/etc/pentads | cut -d':' -f1`
+  nnumm=`expr $nnum - 1`
+  pyyyy=$YYYY
+  if [ $nnumm -le 0 ] ; then
+    nnumm=`grep -n "1231" /rhome/yeong/test/svrtest/libs/etc/pentads | cut -d':' -f1`
+    pyyyy=`expr $YYYY - 1`
+  fi
+  nams=`sed -n "$nnumm p" /rhome/yeong/test/svrtest/libs/etc/pentads | cut -d' ' -f1`
+	namf=`sed -n "$nnumm p" /rhome/yeong/test/svrtest/libs/etc/pentads | sed 's/.* //g'`
+	#
+	MODEL_PREC=$ARCHIVE_DIR/$pyyyy/pentads/flx.ft06.$pyyyy${nams}00-$pyyyy${namf}18.grib
+	if [ ! -s $MODEL_PREC ] ; then
+		echo "$MODEL_PREC not found" >>ERROR.out
+		exit 8
+	fi
+fi

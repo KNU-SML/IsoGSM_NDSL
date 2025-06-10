@@ -1,0 +1,518 @@
+#!/bin/sh
+#PBS -l nodes=1:ppn=36
+ cd \$PBS_O_WORKDIR
+ export LANG=C
+#
+ulimit -s unlimited
+#
+set -ax
+#
+#  many rsm integrations with initial conditions specified by
+#  YYYYS MMS DDS HHS, YYYYE MME DDE HHE and HHINC
+#  The duration of the integration is given by ENDHOUR
+#
+# ---------------  user changeable parameters ---------------------------
+#
+# run directory name
+#
+RUNNAME=r_000
+#
+#  starting and ending initial dates
+#
+YYYYS=1990
+MMS=05
+DDS=01
+HHS=00
+YYYYE=1990
+MME=11
+DDE=01
+HHE=00
+HHINC=24
+#
+#  rsm domain and resolution specification
+# 
+#
+#  Amospheric initial condition
+#
+INITIAL_SIG_PLATFORM=
+INITIAL_SIG_FTP=cp
+INITIAL_SIG_GLB=/net/raid4/kana/rerunarch/\$YYYY\$MM/ncep/anl/sig.anl.\$YYYY\$MM\$DD\$HH.ieee
+INITIAL_SFC_GLB=/net/raid4/kana/rerunarch/\$YYYY\$MM/ncep/anl/sfc.anl.\$YYYY\$MM\$DD\$HH.ieee
+INPUT_RESOLUTION=t62k28
+INITIAL_SFC_FILE_TYPE=osu1
+#
+#  Base field analysis sigma files
+#
+BASE_SIG_PLATFORM=
+BASE_SIG_FTP=cp
+BASE_SIG=/net/raid4/kana/rerunarch/\$YYYYF\$MMF/ncep/anl/sig.anl.\$YYYYF\$MMF\$DDF\$HHF.ieee
+BASE_RESOLUTION=t62k28
+#
+# sst/ice/snow
+#
+SST_PLATFORM=
+SST_FTP=cp
+SST_ANL=/net/raid4/kana/sfcanl/\$YYYY/sst.grib
+SST_ANL_T0=/net/raid4/kana/sfcanl/$YYYYS/sst.grib
+#
+ICE_PLATFORM=
+ICE_FTP=cp
+ICE_ANL=/rhome/yeong/test/svrtest/libs/con/clim.ice.grib
+ICE_ANL_T0=/net/raid4/kana/sfcanl/$YYYYS/ice.grib
+#
+SNO_PLATFORM=
+SNO_FTP=
+SNO_FILENAME=
+SNO_ANL=
+SNO_ANLT0=
+SCV_PLATFORM=
+SCV_FTP=cp
+SCV_ANL=
+SCV_ANL_T0=/net/raid4/kana/sfcanl/$YYYYS/snow.grib
+#
+#  output for archive
+#
+ARCHIVE_PLATFORM=tsuzumi.ucsd.edu
+ARCHIVE_FTP_PROTOCOL=cp
+ARCHIVE_DIR=/net/raid1/kana/namip/R40/\$YYYY\$MM\$DD\$HH
+#
+#  rfcst control statement
+#
+DELTAT_REG_SPRING=@DELTAT_REG_SPRING@
+DELTAT_REG_SUMMER=@DELTAT_REG_SUMMER@
+DELTAT_REG_WINTER=@DELTAT_REG_WINTER@
+DELTAT_REG_FALL=@DELTAT_REG_FALL@
+ENDHOUR=36
+NESTING_HOUR=6
+SWHR_REG=1
+LWHR_REG=1
+INTPOST=6
+INTPGB=$INTPOST
+INCHOUR=24
+INTRESTART=24
+FCST_RESTART=yes
+#
+#  ------------------- below for expert only ------------------
+#
+#  selection of archive variables
+#
+FHR_1ST_END=744
+FTP_R_SIG_1ST=yes
+FTP_R_SFC_1ST=no
+FTP_R_FLX_1ST=no
+FTP_R_PGB_1ST=yes
+FTP_R_FCSTOUT_1ST=no
+FTP_R_EXTVARS_1ST=yes
+#
+FTP_R_SIG_2ND=yes
+FTP_R_SFC_2ND=no
+FTP_R_FLX_2ND=no
+FTP_R_PGB_2ND=yes
+FTP_R_FCSTOUT_2ND=no
+FTP_R_EXTVARS_2ND=yes
+#
+LIST_OF_FILES='r_sig r_sfc r_flx r_pgb rfcstout r_extvars'
+export LIST_OF_FILES
+FILES_TO_BE_KEPT=
+#FILES_TO_BE_KEPT='r_flx r_pgb r_extvars'
+export FILES_TO_BE_KEPT
+#
+FILES_TO_BE_AVERAGED='r_pgb'
+export FILES_TO_BE_AVERAGED
+#
+# You may modify EXPDIR to /tmp directory and keep this
+# scripts on your permanent disk.
+#
+EXPDIR=/rhome/yeong/test/svrtest/gsm_runs/$RUNNAME
+#
+# FHADJ is the forecast hour of base field for initial condition of 
+# this integration  
+#
+FHADJ=0
+#
+DELETE_BASE=yes
+#
+# -------  do not change below  -------------------------------------
+#
+mkdir -p $EXPDIR 2>/dev/null
+scrnam=`echo $0 | sed 's?.*/??g'`
+cp $0 $EXPDIR/0LOG.$scrnam
+ls -l /rhome/yeong/test/svrtest/gsm/bin >$EXPDIR/0LOG.bindates
+cd $EXPDIR
+#
+CPROJ=0.0
+CTRUTH=0.0
+CORIENT=0.0
+CDELX=0.0
+CDELY=0.0
+CCENLAT=0.0
+CCENLON=0.0
+CLFTGRD=0.0
+CBTMGRD=0.0
+#
+rm ERROR.out 2>/dev/null
+#
+cat >rsm.parm <<EOF
+ &NAMLOC
+ RPROJ    = $RPROJ,
+ RTRUTH   = $RTRUTH,
+ RORIENT  = $RORIENT,
+ RDELX    = $RDELX,
+ RDELY    = $RDELY,
+ RCENLAT  = $RCENLAT,
+ RCENLON  = $RCENLON,
+ RLFTGRD  = $RLFTGRD,
+ RBTMGRD  = $RBTMGRD,
+ CPROJ    = $CPROJ,
+ CTRUTH   = $CTRUTH,
+ CORIENT  = $CORIENT,
+ CDELX    = $CDELX,
+ CDELY    = $CDELY,
+ CCENLAT  = $CCENLAT,
+ CCENLON  = $CCENLON,
+ CLFTGRD  = $CLFTGRD,
+ CBTMGRD  = $CBTMGRD,
+/
+EOF
+#
+YYYY=$YYYYS
+MM=$MMS
+DD=$DDS
+HH=$HHS
+YYYYMMDDHH=$YYYYS$MMS$DDS$HHS
+YYYYMMDDHHE=$YYYYE$MME$DDE$HHE
+while [ $YYYYMMDDHH -le $YYYYMMDDHHE ] ; do
+	#
+	# setup initial conditions
+	#
+	EXECDIR=$EXPDIR/$YYYYMMDDHH
+	mkdir -p $EXECDIR
+	cd $EXECDIR
+	YMDH=$YYYYMMDDHH
+	echo "`date` $0: started" >>ERROR.out
+	YMDH=$YYYY$MM$DD$HH
+	#
+	HHM=`expr $HH - $FHADJ`
+	DDM=`expr $DD + 0`
+	MMM=`expr $MM + 0`
+	YYYYM=$YYYY
+	if [ $HHM -lt 0 ] ; then
+		HHM=`expr 24 - $HHM`
+		DDM=`expr $DD - 1`
+		if [ $DDM -lt 1 ]  ; then
+			MMM=`expr $MM - 1`
+			if [ $MMM -lt 1 ] ; then
+				YYYYM=`expr $YYYY - 1`
+				MMM=12
+			fi
+			if [ $MMM -eq 2 ] ; then
+				if [ `expr $YYYYM \% 4` -eq 0 ] ; then
+					DDM=29
+				else
+					DDM-28
+				fi
+			elif [ $MMM -eq 1 -o $MMM -eq 3 -o $MMM -eq 5 -o $MY -eq 7 -o \
+					$MMM -eq 8 -o $MMM -eq 10 -o $MMM -eq 12 ] ; then
+				DDM=31
+			else
+				DDM=30
+			fi
+		fi
+	fi
+	if [ $HHM -lt 10 ] ; then
+		HHM=0$HHM
+	fi
+	if [ $DDM -lt 10 ] ; then
+		DDM=0$DDM
+	fi
+	if [ $MMM -lt 10 ] ; then
+		MMM=0$MMM
+	fi
+	cp ../rsm.parm .
+	if [ ! -s r_sigit -o ! -s r_sigitdt -o ! -s r_sfci ] ; then
+		h=0
+		#
+		#   fetch global initial condition sig and sfc files
+		#
+		/rhome/yeong/test/svrtest/gsm_runs/runscr/fetchfile  \
+				$INITIAL_SIG_GLB ./initial_sig_glb \
+				$INITIAL_SIG_FTP $INITIAL_SIG_PLATFORM || exit 8
+		/rhome/yeong/test/svrtest/gsm_runs/runscr/fetchfile  \
+				$INITIAL_SFC_GLB ./initial_sfc_glb \
+				$INITIAL_SIG_FTP $INITIAL_SIG_PLATFORM || exit 8
+		# 
+		#  Convert to native format
+    #
+    FILE_FORMAT=`echo $INITIAL_SIG_GLB | sed 's/.*\.//g'`
+	if [ "$FILE_FORMAT" != ascii -a \
+			"$FILE_FORMAT" != asc -a \
+			"$FILE_FORMAT" != ieee -a \
+			"$FILE_FORMAT" != ieee_dp -a \
+			"$FILE_FORMAT" != ieee_sgi -a \
+			"$FILE_FORMAT" != cray ] ; then
+		FILE_FORMAT=bin
+	fi
+    /rhome/yeong/test/svrtest/libs/etc/scnvrt gsm $INITIAL_SFC_FILE_TYPE \
+      62:192:94:28 \
+      $YYYY:$MM:$DD:$HH:0 \
+      $FILE_FORMAT:bin \
+      initial_sig_glb:initial_sfc_glb \
+      sigit:sfci || exit 8
+		# 
+		#  interpolate to regional grid
+    #
+		/rhome/yeong/test/svrtest/gsm_runs/runscr/r_inpg $INITIAL_SFC_FILE_TYPE \
+			sigit:sfci r_sigit:r_sfci || exit 8
+		cp r_sigit r_sigitdt
+		#
+		#  run sfc0
+		#
+		#  fetch fixed fields
+		#
+		for fld in sst sno scv ice
+		do
+			FLD=`echo $fld | tr '[a-z]' '[A-Z]'`
+			anl_t0=\$${FLD}_ANL_T0
+			anl_t0=`eval echo $anl_t0`
+			anl_t0=`eval echo $anl_t0`
+			ftp=\$${FLD}_FTP
+			ftp=`eval echo $ftp`
+			platform=\$${FLD}_PLATFORM
+			platform=`eval echo $platform`
+			if [ -n "$anl_t0" -a ! -s ./$fld.grib ] ; then
+				if [ $ftp != ln ] ; then
+					/rhome/yeong/test/svrtest/gsm_runs/runscr/fetchfile  \
+						$anl ./$fld.grib \
+						$ftp $platform || exit 8
+						eval ${FLD}_GRB_T0=$EXECDIR/$fld.grib
+				else
+					eval ${FLD}_GRB_T0=$anl_t0
+				fi
+			else
+				eval ${FLD}_GRB_T0=
+			fi
+		done
+		export SST_GRB_T0 SNO_GRB_T0 SCV_GRB_T0 ICE_GRB_T0
+		/rhome/yeong/test/svrtest/gsm_runs/runscr/rsfc0 r_sfci r_sfco $INITIAL_SFC_FILE_TYPE || exit 8
+		cp r_sfco r_sfci
+	else
+		ft=`ls -lt r_sigit.ft* | head -1 | awk '{print $9}' | sed 's/.*\.ft//g'`
+		cp r_sigit.ft$ft r_sigit || exit 8
+		cp r_sigitdt.ft$ft r_sigitdt || exit 8
+		cp r_sfc.ft$ft r_sfci || exit 8
+		h=`/rhome/yeong/test/svrtest/libs/etc/fhour r_sigit`
+	fi
+	#
+	if [ linux = dec ] ; then
+		cp sfc.ft00 dummy
+	fi
+	#
+	# forecast
+	#
+	while [ $h -lt $ENDHOUR ];do
+		h=`expr $h + 0`
+		hx=`expr $h + $INCHOUR`
+		if [ $hx -lt 0 ] ; then hx=0$hx ; fi
+		#
+		#  link base field to the file name the rsm expects  
+		#
+		fh=0
+		while [ $fh -le $INCHOUR ] ; do
+			fhx=`expr $fh + $h`
+			fhx=`expr \( $fhx \/ $NESTING_HOUR \) \* $NESTING_HOUR`
+			/rhome/yeong/test/svrtest/libs/etc/incdte $YYYY $MM $DD $HH $fhx  >dteout$$ || exit 8
+			read YYYYF  MMF  DDF  HHF  <dteout$$
+			rm dteout$$
+			if [ ! -s base.$YYYYF$MMF$DDF$HHF ] ; then
+				FILE_FORMAT=`echo $BASE_SIG | sed 's/.*\.//g'`
+				if [ "$FILE_FORMAT" != ascii -a \
+						"$FILE_FORMAT" != asc -a \
+						"$FILE_FORMAT" != ieee -a \
+						"$FILE_FORMAT" != ieee_dp -a \
+						"$FILE_FORMAT" != ieee_sgi -a \
+						"$FILE_FORMAT" != cray ] ; then
+					FILE_FORMAT=bin
+				fi
+				base_sig=`eval echo $BASE_SIG`
+				/rhome/yeong/test/svrtest/gsm_runs/runscr/fetchfile  \
+					$base_sig ./base_sig \
+					$BASE_SIG_FTP $BASE_SIG_PLATFORM || exit 8
+				/rhome/yeong/test/svrtest/libs/etc/scnvrt gsm $INITIAL_SFC_FILE_TYPE \
+					62:192:94:28 \
+					$YYYY:-1:-1:-1:-1 \
+					$FILE_FORMAT:bin \
+					base_sig:dummy \
+					base.$YYYYF$MMF$DDF$HHF:dummy1 || exit 8
+			fi
+			fh=`expr $fh + $NESTING_HOUR`
+		done
+		#
+		#  create namelist data for forecast
+		#
+		for fld in sst sno scv ice
+		do
+			FLD=`echo $fld | tr '[a-z]' '[A-Z]'`
+			anl=\$${FLD}_ANL
+			anl=`eval echo $anl`
+			anl=`eval echo $anl`
+			ftp=\$${FLD}_FTP
+			ftp=`eval echo $ftp`
+			platform=\$${FLD}_PLATFORM
+			platform=`eval echo $platform`
+			if [ -n "$anl" ] ; then
+				if [ $ftp != ln ] ; then
+					/rhome/yeong/test/svrtest/gsm_runs/runscr/fetchfile  \
+						$anl ./$fld.grib \
+						$ftp $platform || exit 8
+						eval ${FLD}_GRB=$EXECDIR/$fld.grib
+				else
+					eval ${FLD}_GRB=$anl
+				fi
+			else
+				eval ${FLD}_GRB=$anl
+			fi
+		done
+		export SST_GRB SNO_GRB SCV_GRB ICE_GRB
+    /rhome/yeong/test/svrtest/libs/etc/incdte $YYYY $MM $DD $HH $h  >dteout$$ || exit 8
+		if [ $MMF = 12 -o $MMF = 01 -o $MMF = 02 ] ; then
+			DELTAT_REG=$DELTAT_REG_WINTER
+		elif [ $MMF = 03 -o $MMF = 04 -o $MMF = 05 ] ; then
+			DELTAT_REG=$DELTAT_REG_SPRING
+		elif [ $MMF = 06 -o $MMF = 07 -o $MMF = 08 ] ; then
+			DELTAT_REG=$DELTAT_REG_SUMMER
+		elif [ $MMF = 09 -o $MMF = 10 -o $MMF = 11 ] ; then
+			DELTAT_REG=$DELTAT_REG_FALL
+		fi
+		export DELTAT_REG
+		/rhome/yeong/test/svrtest/gsm_runs/runscr/r_fcstparm $INCHOUR $ENDHOUR \
+				$DELTAT_REG $NESTING_HOUR $INTPOST $INTPGB $INTSFCX $INTRESTART || exit 8
+		#
+		#  archive control
+		#
+		if [ $hx -le $FHR_1ST_END ] ; then
+			FTP_R_SIG=$FTP_R_SIG_1ST
+			FTP_R_SFC=$FTP_R_SFC_1ST
+			FTP_R_FLX=$FTP_R_FLX_1ST
+			FTP_R_PGB=$FTP_R_PGB_1ST
+			FTP_R_SFCANL=$FTP_R_SFCANL_1ST
+			FTP_R_SFCOUT=$FTP_R_SFCOUT_1ST
+			FTP_R_FCSTOUT=$FTP_R_FCSTOUT_1ST
+			FTP_R_EXTVARS=$FTP_R_EXTVARS_1ST
+		else
+			FTP_R_SIG=$FTP_R_SIG_2ND
+			FTP_R_SFC=$FTP_R_SFC_2ND
+			FTP_R_FLX=$FTP_R_FLX_2ND
+			FTP_R_PGB=$FTP_R_PGB_2ND
+			FTP_R_SFCANL=$FTP_R_SFCANL_2ND
+			FTP_R_SFCOUT=$FTP_R_SFCOUT_2ND
+			FTP_R_FCSTOUT=$FTP_R_FCSTOUT_2ND
+			FTP_R_EXTVARS=$FTP_R_EXTVARS_2ND
+		fi
+    export FTP_R_SIG FTP_R_SFC FTP_R_FLX FTP_R_PGB FTP_R_FCSTOUT FTP_R_EXTVARS
+		#
+		#  execute forecast
+		#
+		/rhome/yeong/test/svrtest/gsm_runs/runscr/r_fcst $h $hx $INCHOUR $INTPOST || exit 8
+		#
+		#  copy files 
+		#
+		cp r_sigit.ft$hx r_sigit || exit 8
+		mv r_sigitdt.ft$hx r_sigitdt || exit 8
+		cp r_sfc.ft$hx r_sfci || exit 8
+		#
+		#  post processing
+		#
+		if [ " " = DEFINED ] ; then
+			/rhome/yeong/test/svrtest/libs/etc/catpgb
+		fi
+		FTP_DIR=`eval echo $ARCHIVE_DIR`
+		FTP_PLATFORM=$ARCHIVE_PLATFORM
+		FTP_PROTOCOL=$ARCHIVE_FTP_PROTOCOL
+		/rhome/yeong/test/svrtest/gsm_runs/runscr/r_cpost non_batch $EXPDIR/$YMDH \
+			$YYYY:$MM:$DD:$HH:$h:$hx:$INTPOST \
+			$ENDHOUR:$INCHOUR:$INTPOST:$INTPOST || exit 8
+		#
+		#  Delete old short archive files
+		#
+		rc=0
+		for filex in $FILES_TO_BE_KEPT
+		do
+			if [ $filex = r_pgb ] ; then
+				rc=1
+			fi
+		done
+		rd=0
+		for filex in $FILES_TO_BE_AVERAGED
+		do
+			if [ $filex = r_pgb ] ; then
+				rd=1
+			fi
+		done
+		keepsig=yes
+		if [ $rc -eq 0 -a $rd -eq 0 ] ; then
+			keepsig=no
+		fi
+		for file in $LIST_OF_FILES
+		do
+			FILE=`echo $file | tr '[a-z]' '[A-Z]'`
+			ftp=\$FTP_$FILE
+			ftp=`eval echo $ftp`
+			if [ $ftp = yes ] ; then
+				continue
+			fi
+			rc=0
+			for filex in $FILES_TO_BE_KEPT
+			do
+				if [ $filex = $file ] ; then
+					rc=1
+				fi
+			done
+			if [ $rc -eq 1 ] ; then
+				continue
+			fi
+			rc=0
+			for filex in $FILES_TO_BE_AVERAGED
+			do
+				if [ $filex = $file ] ; then
+					rc=1
+				fi
+			done
+			if [ $rc -eq 1 ] ; then
+				continue
+			fi
+			if [ $file = r_sig -a $keepsig = yes ] ; then
+				continue
+			fi
+			if [ $file = r_flx ] ; then
+				continue
+			fi
+			hxx=$hx
+			intvl=$INTPOST
+			if [ $hxx -ge 0 ] ; then
+				/rhome/yeong/test/svrtest/gsm_runs/runscr/delfile $file $h $hxx $intvl || exit 8
+			fi
+		done
+		#
+		# delete base or coarse grid boundary condition for $h
+		#
+		if [ "$DELETE_BASE" = yes ] ; then
+			while [ $fh -lt $INCHOUR ] ; do
+				fhx=`expr $fh + $h`
+				/rhome/yeong/test/svrtest/libs/etc/incdte $YYYY $MM $DD $HH $fhx  >dteout$$ || exit 8
+				read YYYYF  MMF  DDF  HHF  <dteout$$ ; rm dteout$$
+				rm base.$YYYYF$MMF$DDF$HHF
+				fh=`expr $fh + $NESTING_HOUR`
+			done
+		fi
+		#
+		h=`expr $hx`
+	done
+	#
+	#  increment initial condition hour
+	#
+	/rhome/yeong/test/svrtest/libs/etc/incdte $YYYY $MM $DD $HH $HHINC >incdte.out$$
+	read YYYY MM DD HH <incdte.out$$
+	YYYYMMDDHH=$YYYY$MM$DD$HH
+	rm incdte.out$$
+	rm top*.asc
+done

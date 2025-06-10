@@ -1,0 +1,74 @@
+#!/bin/sh
+cd $currdir
+count=1
+for modelx in `echo $model | sed 's/:/ /g'`
+do
+	srcs_dirx=\$srcs_dir_$count
+	srcs_dirx=`eval echo $srcs_dirx`
+	runs_dirx=\$runs_dir_$count
+	runs_dirx=`eval echo $runs_dirx`
+        if [ $count = 1 ] ; then
+                runs_dir_components=$currdir/$runs_dirx
+                srcs_dir_components=$currdir/$srcs_dirx
+        else
+                runs_dir_components=$runs_dir_components:$currdir/$runs_dirx
+                srcs_dir_components=$srcs_dir_components:$currdir/$srcs_dirx
+        fi
+	count=`expr $count + 1`
+done
+modely=$model
+if [ "$couple" = yes ] ; then
+	modely=$model:cpl
+fi
+count=1
+runscriptx=\$runscript_$count
+runscriptx=`eval echo $runscriptx`
+for modelx in `echo $modely | sed 's/:/ /g'`
+do
+	if [ "$runons" != s ] ; then
+		srcs_dirx=\$srcs_dir_$count
+		srcs_dirx=`eval echo $srcs_dirx`
+		runs_dirx=\$runs_dir_$count
+		runs_dirx=`eval echo $runs_dirx`
+		rresx=\$rres_$count
+		rresx=`eval echo $rresx`
+		rgnx=\$rgn_$count
+		rgnx=`eval echo $rgnx`
+		projx=\$proj_$count
+		projx=`eval echo $projx`
+		if [ ! -z "$rresx" ] ; then
+			xrresx=$rresx
+		fi
+		if [ ! -z "$rgnx" ] ; then
+			xrgnx=$rgnx
+		fi
+		if [ ! -z "$projx" ] ; then
+			xprojx=$projx
+		fi
+		mkdir $runs_dirx 2>/dev/null
+		cd $runs_dirx
+		if [ -z "$tar" -a "$skip_cvsco" != yes ] ; then
+			echo cvs co $arg SCR_ALL
+			cvs co $arg SCR_ALL
+		fi
+		for tag in $prenoah_tag_list
+		do
+			if [ "$version" = $tag -a "$skip_cvsco" != yes ] ; then
+				echo cvs co $arg $runscriptx.in
+				cvs co $arg $runscriptx.in
+				break
+			fi
+		done
+		if [ "$modelx" = cpl ] ; then
+			sed "1,/SRCS_DIR=/ s%^SRCS_DIR=.*%SRCS_DIR=$srcs_dir_components%g" configure-scr | \
+			sed "1,/RUNS_DIR_COMPONENTS=/ s%^RUNS_DIR_COMPONENTS=.*%RUNS_DIR_COMPONENTS=$runs_dir_components%g" >tmp.$$
+		else
+			sed "1,/^SRCS_DIR=/ s%^SRCS_DIR=.*%SRCS_DIR=$currdir/$srcs_dirx%g" configure-scr | \
+			sed "1,/^RUNS_DIR_COMPONENTS=/ s%^RUNS_DIR_COMPONENTS=.*%RUNS_DIR_COMPONENTS=$runs_dir_components%g" >tmp.$$
+		fi
+		mv tmp.$$ configure-scr
+		chmod u+x configure-scr
+	fi
+	count=`expr $count + 1`
+	cd $currdir
+done

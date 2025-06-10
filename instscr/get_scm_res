@@ -1,0 +1,37 @@
+#!/bin/sh
+res_num_existx=4
+ls -1d ./def/def_scm/scm*  | sed 's%.*/%%g' >out.$$
+nn=`wc -l out.$$ | awk '{print $1}'`
+echo " "
+echo "Model case specification"
+n=1
+while [ $n -le $nn ] ; do
+	echo "($n) `sed -n "$n"p out.$$`"
+	n=`expr $n + 1`
+done
+if [ "$continue" != yes ] ; then
+	echo " "
+	echo "Type the number associated with your case specification."
+	echo -n "If there is no choice available, type 999 [return=$res_num_existx] ==>"
+	read num
+else
+	num=
+fi
+if [ -z "$num" ] ; then
+	num=$res_num_existx
+elif [ "$num" -eq 999 ] ; then
+	echo " create new scm directory in def_scm"
+	rm out.$$
+	exit
+fi
+MODEL_DEFINE=`sed -n "${num}p" out.$$`
+rm out.$$
+eval res_num_$count=$num
+res_numx=\$res_num_$count
+res_numx=`eval echo $res_numx`
+if [ -z "$res_numx" ] ; then
+	eval res_num_$count=$res_num_existx
+fi
+res_numx=\$res_num_$count
+res_numx=`eval echo $res_numx`
+eval res_$count=$MODEL_DEFINE

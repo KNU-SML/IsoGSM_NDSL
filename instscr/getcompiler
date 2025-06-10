@@ -1,0 +1,54 @@
+#!/bin/sh
+if [ -s .hist ] ; then
+	COMPILER=`grep "^COMPILER=" .hist | cut -d'=' -f2`
+fi
+if [ $MACHINE = linux ] ; then 
+	compiler=pgi
+	if [ "$INSTITUTION" = sdsc ] ; then
+		COMPILER=intel
+	fi
+	if [ "$INSTITUTION" = sio ] ; then
+		COMPILER=pgi
+	fi
+	if [ "$INSTITUTION" = ecpc ] ; then
+		COMPILER=pgi
+	fi
+	if [ "$INSTITUTION" = tacc ] ; then
+		COMPILER=intel
+	fi
+	if [ "$INSTITUTION" = ncar ] ; then
+		COMPILER=intel
+	fi
+	if [ "$INSTITUTION" = ncsa ] ; then
+		COMPILER=intel
+	fi
+	if [ "$continue" != yes ] ; then
+		echo ' '
+		echo 'Compiler'
+		echo -n "Enter COMPILER, ? for list [return=$COMPILER]. ==>"
+		read compiler
+	else
+		compiler=
+	fi
+	if [ "$compiler" = '?' ] ; then
+		echo -n "pgi or intel ==>"
+		read comp
+		if [ ! -z "$comp" ] ; then
+			COMPILER=$comp
+		else
+			COMPILER=$COMPILER
+		fi
+	elif [ "$compiler" = 'pgi' -o "$compiler" = 'intel' ] ; then
+		COMPILER=$compiler
+	else
+		COMPILER=$COMPILER
+	fi
+fi 
+grep COMPILER= .hist >/dev/null 2>/dev/null
+rc=$?
+sed "s/COMPILER=.*/COMPILER=$COMPILER/g" .hist >tmp.$$
+if [ $rc -eq 0 ] ; then
+	mv tmp.$$ .hist	
+else
+	echo COMPILER=$COMPILER >>.hist
+fi

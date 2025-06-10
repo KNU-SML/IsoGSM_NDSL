@@ -1,0 +1,152 @@
+#!/bin/sh
+#
+cqcbufr_minus_oneday=$1
+cqcbufr_minus_hlfday=$2
+cqcbufr_plus_hlfday=$3
+cqcbufr_plus_oneday=$4
+#
+PROG=cqc
+echo `date` -- $PROG started  >>ERROR.out
+#
+#  Time continuity check files
+#
+timecheck=yes
+if [ ! -s $cqcbufr_minus_oneday ] ; then
+	timecheck=no
+	echo "Warning: cqcbufr minus one day file not found" >>ERROR.out
+else
+	filefmt1='-Fcos'
+fi
+if [ $timecheck = yes ] ; then
+	if [ ! -s $cqcbufr_minus_hlfday ] ; then
+		timecheck=no
+		echo "Warning: cqcbufr minus half day file not found" >>ERROR.out
+	else
+		filefmt2='-Fcos'
+	fi
+fi
+if [ $timecheck = yes ] ; then
+	if [ ! -s $cqcbufr_plus_hlfday ] ; then
+		timecheck=no
+		echo "Warning: cqcbufr plus half day file not found" >>ERROR.out
+	else
+		filefmt3='-Fcos'
+	fi
+fi
+if [ $timecheck = yes ] ; then
+	if [ ! -s $cqcbufr_plus_oneday ] ; then
+		timecheck=no
+		echo "Warning: cqcbufr plus one day file not found" >>ERROR.out
+	else
+		filefmt4='-Fcos'
+	fi
+fi
+#
+#  Disable time check if any one of the four files is missing
+#
+if [ $timecheck = no ] ; then
+	> empty1
+	> empty2
+	> empty3
+	> empty4
+	cqcbufr_minus_oneday='empty1'
+	cqcbufr_minus_hlfday='empty2'
+	cqcbufr_plus_hlfday='empty3'
+	cqcbufr_plus_oneday='empty4'
+	filefmt1=''
+	filefmt2=''
+	filefmt3=''
+	filefmt4=''
+fi
+rm cqe.anl.ascii  cqb.anl.ascii  cqt.anl.ascii  2>/dev/null
+#
+list_blank_file="cqc11 cqc13 cqc16 cqe.anl.ascii cqb.anl.ascii"
+for blank in $list_blank_file
+do
+   if [ ! -s $blank ] ; then
+      > $blank
+   fi
+done
+#
+#  temporally disable time check
+#
+#if [ $DISABLE_CQC_TIME_CHECK = yes ] ; then
+#	> empty1
+#	> empty2
+#	> empty3
+#	> empty4
+#	cqcbufr_minus_oneday='empty1'
+# 	cqcbufr_minus_hlfday='empty2'
+#	cqcbufr_plus_hlfday='empty3'
+#	cqcbufr_plus_oneday='empty4'
+#	filefmt1=''
+#	filefmt2=''
+#	filefmt3=''
+#	filefmt4=''
+#fi
+#
+if [ @MACHINE@ = cray -o @MACHINE@ = t90 -o @MACHINE@ = t3e ] ; then
+	NCPUS=1
+	export NCPUS
+	assign -R
+	assign -a bufr_adpupa -Fcos               @FTNID@14
+	assign -a $cqcbufr_minus_oneday $filefmt1 @FTNID@17
+	assign -a $cqcbufr_minus_hlfday $filefmt2 @FTNID@18
+	assign -a $cqcbufr_plus_hlfday  $filefmt3 @FTNID@19
+	assign -a $cqcbufr_plus_oneday  $filefmt4 @FTNID@20
+	assign -a bufr_adpupa_cqc_output -Fcos    @FTNID@51
+	assign -a cqc11                           @FTNID@11
+	assign -a cqe.anl.ascii                   @FTNID@12
+	assign -a cqc13                           @FTNID@13
+	assign -a cqb.anl.ascii                   @FTNID@15
+	assign -a cqc16                           @FTNID@16
+	assign -a cqt.anl.ascii                   @FTNID@60
+	assign -a cqc61                           @FTNID@61
+	assign -a cqc62                           @FTNID@62
+	assign -a cqc64                           @FTNID@63
+	assign -a cqc65                           @FTNID@64
+else
+	rm -f @FTNID@[0-9]* 2>/dev/null
+	ln -fs bufr_adpupa            @FTNID@14
+	ln -fs $cqcbufr_minus_oneday  @FTNID@17
+	ln -fs $cqcbufr_minus_hlfday  @FTNID@18
+	ln -fs $cqcbufr_plus_hlfday   @FTNID@19
+	ln -fs $cqcbufr_plus_oneday   @FTNID@20
+	ln -fs bufr_adpupa_cqc_output @FTNID@51
+	ln -fs cqc11                  @FTNID@11
+	ln -fs cqe.anl.ascii          @FTNID@12
+	ln -fs cqc13                  @FTNID@13
+	ln -fs cqb.anl.ascii          @FTNID@15
+	ln -fs cqc16                  @FTNID@16
+	ln -fs cqt.anl.ascii          @FTNID@60
+	ln -fs cqc61                  @FTNID@61
+	ln -fs cqc62                  @FTNID@62
+	ln -fs cqc64                  @FTNID@63
+	ln -fs cqc65                  @FTNID@64
+fi
+if [ @MACHINE@ = cray -o @MACHINE@ = t90 -o @MACHINE@ = t3e ] ; then
+	NCPUS=1
+	export NCPUS
+fi
+rm -f $PROG.x
+ln -fs @SRCS_DIR@/bin/${PROG}.x $PROG.x
+./$PROG.x 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+if [ @MACHINE@ != cray -a @MACHINE@ != t90 -o @MACHINE@ != t3e ] ; then
+	rm -f @FTNID@[0-9]* 2>/dev/null
+fi
+grep 'STOP INPUT - NO DATA' $PROG.out >/dev/null
+if [ $? -eq 0 ] ; then
+	echo ' ' >cqe.anl.ascii
+	echo ' ' >cqt.anl.ascii
+	echo ' ' >cqb.anl.ascii
+else
+	if [ ! -s cqe.anl.ascii ] ; then
+		if [ -s cqt.anl.ascii ] ; then
+			echo ' ' >cqe.anl.ascii
+		fi
+	fi
+fi

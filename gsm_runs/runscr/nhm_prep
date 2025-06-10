@@ -1,0 +1,84 @@
+#!/bin/sh
+#
+rm -f fort.*
+#
+read  NX NY NPROJC DX DY SLAT SLON FLATC FLONC XI XJ XLA XLON < ./domain.txt
+echo "$0: NX=$NX NY=$NY NPROJC=$NPROJC DX=$DX DY=$DY" >>ERROR.out
+echo "SLAT=$SLAT SLON=$SLON FLATC=$FLATC FLONC=$FLONC" >>ERROR.out
+echo "XI=$XI XJ=$XJ XLA=$XLA XLON=$XLON" >>ERROR.out
+#
+DTNHM=$NHM_DT
+IT1=`expr 3600 / ${DTNHM}`
+IT3=`expr ${IT1} \* 3 `
+IT6=`expr ${IT1} \* 6 `
+IT24=`expr ${IT1} \* 24 `
+#
+NZ=$NHM_LEVS  #grid number in z-direction
+MDLTOP=22055  #height of model top(Typically, 22055(NZ=40) or 13815(NZ=32).)
+DZ=904.       #vertical resolution in z-direction
+GRMAX=0.15
+MODE_ZS_SMOOTH='1.5 average'
+FLAG_TOPO2NUS=1
+#
+#  parameter for boundary dumping area
+#
+if [ ${NX} -lt ${NY} ];then
+  IWDTH=`expr ${NX} \* 4 / 100`
+  IMERG=`expr ${NX} \* 4 / 100`
+else
+  IWDTH=`expr ${NY} \* 4 / 100`
+  IMERG=`expr ${NY} \* 4 / 100`
+fi
+#
+IDIFX=`expr $IWDTH + $IMERG`
+#
+#start level of Rayleigh dumping : about NZ * 0.8
+#
+KZDST=`expr ${NZ} \* 8 / 10 `
+#
+#vertical layer of guess
+#
+NZC=${NZ}
+#
+#vertical layer of initial and boundary file.
+#
+# Parameter for Hybrid
+#
+VCTRANS_TYPE=0
+if [ X"${VCTRANS_TYPE}" = X"0" ]; then
+  N_VCTRANS=1
+  ZL_VCTRANS=1000.0
+  ZH_VCTRANS=9000.0
+elif [ X"${VCTRANS_TYPE}" = X"3" ]; then
+  N_VCTRANS=3
+  ZL_VCTRANS=1000.0
+  ZH_VCTRANS=11000.0
+fi
+# ===============================
+# fcst : Time integration
+# ===============================
+# INPUT FILES
+#
+ln -fs ./uvptq/uvptq.data	fort.23
+ln -fs ./uvptq/ptgrd.data       fort.25
+ln -fs ./uvptq/org.data	      	fort.50
+ln -fs ./uvptq/sibini_rsm.data	fort.36
+# ===============================
+#   CONST
+# ===============================
+ln -fs /rhome/yeong/test/svrtest/libs/con/nhm/gldata.bandcnx  fort.90
+ln -fs /rhome/yeong/test/svrtest/libs/con/nhm/band.dat        fort.31
+ln -fs /rhome/yeong/test/svrtest/libs/con/nhm/GSM9603.VEG     fort.32
+#
+# Radiation
+#
+ln -fs /rhome/yeong/test/svrtest/libs/con/nhm/band2004.dat       fort.33
+ln -fs /rhome/yeong/test/svrtest/libs/con/nhm/OZN_T42L68_clm.dat fort.34
+#
+# Sib vegetation distribution from GLCC
+#
+ln -fs ./uvptq//GLCC-SiB_rsm_mod      fort.35
+#
+ln -fs mri.data fort.62
+ln -fs SiB.data fort.72
+

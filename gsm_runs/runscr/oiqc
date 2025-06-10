@@ -1,0 +1,54 @@
+#!/bin/sh
+#
+PROG=oiqc
+echo `date` -- $PROG started  >>ERROR.out
+rm oiqc_bufr_output 2>/dev/null
+> obprt.wrk
+> tolls.wrk
+if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+	assign -R
+	assign -a nmcdate                     fort.11
+	assign -a combbufr_bufr_output -Fcos  fort.14
+	assign -a /rhome/yeong/test/svrtest/libs/con/oiqcerr   fort.17
+	assign -a obprt.wrk                   fort.18
+	assign -a tolls.wrk                   fort.20
+	assign -a obcbt.out                   fort.60
+	assign -a toss.sfz                    fort.61
+	assign -a toss.upa                    fort.62
+	assign -a toss.sat                    fort.63
+	assign -a toss.smi                    fort.64
+	assign -a tosslist                    fort.65
+	assign -a oiqc.anl.bufr -Fcos         fort.70
+	assign -a obogram.out                 fort.81
+	assign -a obogram.bin                 fort.82
+else
+	rm -f fort.[0-9]* 2>/dev/null
+	ln -sf nmcdate                     fort.11
+	ln -sf combbufr_bufr_output        fort.14
+ 	ln -sf /rhome/yeong/test/svrtest/libs/con/oiqcerr.asc fort.17
+	ln -sf obprt.wrk                   fort.18
+	ln -sf tolls.wrk                   fort.20
+	ln -sf obcbt.out                   fort.60
+	ln -sf toss.sfz                    fort.61
+	ln -sf toss.upa                    fort.62
+	ln -sf toss.sat                    fort.63
+	ln -sf toss.smi                    fort.64
+	ln -sf tosslist                    fort.65
+	ln -sf oiqc.anl.bufr               fort.70
+	ln -sf obogram.out                 fort.81
+	ln -sf obogram.bin                 fort.82
+fi
+if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+	NCPUS=1
+	export NCPUS
+fi
+rm -f $PROG.x
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/${PROG}.x $PROG.x
+./$PROG.x 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+if [ linux != cray -a linux != t90 -o linux != t3e ] ; then
+	rm -f fort.[0-9]* 2>/dev/null
+fi

@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+yyyymmdd=$1
+#
+PROG=grepsat
+echo "-------------- $PROG ------------" >>ERROR.out
+if [ $yyyymmdd -le 19750301 -o \
+		 $yyyymmdd -eq 19790116 -o $yyyymmdd -eq 19790218 -o \
+	\( $yyyymmdd -ge 19800302 -a $yyyymmdd -le 19800305 \) -o \
+		 $yyyymmdd -eq 19800925 -o $yyyymmdd -eq 19801024 -o \
+		 $yyyymmdd -eq 19821216 -o $yyyymmdd -eq 19821217 -o \
+		 $yyyymmdd -eq 19860101 -o $yyyymmdd -eq 19860102 -o \
+		 $yyyymmdd -eq 19870101 -o $yyyymmdd -eq 19870102 ] ; then
+	rm prepgrepsat 2>/dev/null
+	if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+		assign -R
+		assign -a out.bufr -Fcos     fort.8
+		assign -a prepgrepsat -Fcos  fort.9
+	else
+		rm -f fort.[0-9]* 2>/dev/null
+		ln -fs out.bufr    fort.8
+		ln -fs prepgrepsat fort.9
+	fi
+	if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+		NCPUS=1
+		export NCPUS
+	fi
+	rm -f $PROG.x
+  ln -fs /rhome/yeong/test/svrtest/gsm/bin/${PROG}.x $PROG.x
+  ./$PROG.x 1>$PROG.out 2>&1
+  if [ $? -ne 0 ] ; then
+    echo "`date` $0: Execution failed." >>ERROR.out
+    exit 8
+  fi
+	if [ linux != cray -a linux != t90 -o linux != t3e ] ; then
+		rm -f fort.[0-9]* 2>/dev/null
+	fi
+	cp prepgrepsat out.bufr
+else
+	echo $PROG execution skipped >>ERROR.out
+fi

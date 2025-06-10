@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# make rsm geoptential and land/sea distribution file
+#
+PROG=nhm_rsm_geopt
+rm fort.* 2>/dev/null
+wgrib -s $RPGB_DIR/r_pgb.ft00 >inventory.$$ 2>/dev/null
+grep ":LAND:sfc:" inventory.$$ | wgrib -i -ieee -nh $RPGB_DIR/r_pgb.ft00 -o ./land_sea_rsm.dat 1>/dev/null
+rm inventory.$$
+ln -fs ${RSIG_DIR}/r_sfc.ft00          fort.20
+ln -fs ${RSIG_DIR}/r_sigit.ft00        fort.25
+ln -fs ./land_sea_rsm.dat              fort.40
+ln -fs $OUTER_RSM_SRCS_DIR/define.h    fort.50
+#  output file
+ln -fs ./rsm_dim.txt              fort.60
+ln -fs ./rsm_geopt.dat            fort.30
+#
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/$PROG.x $PROG.x
+./$PROG.x 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	echo $PROG.x failed
+	exit 8
+fi

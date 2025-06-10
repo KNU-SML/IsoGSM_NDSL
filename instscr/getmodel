@@ -1,0 +1,57 @@
+#!/bin/sh
+#
+if [ -s .hist ] ; then
+	model_exist=`grep '^model_exist=' .hist | cut -d'=' -f2`
+fi
+if [ -z "$model_exist" ] ; then
+	model_exist=gsm
+fi
+if [ -z "$model" ] ; then
+	if [ -z "$tar" ] ; then
+		model=
+		c=0
+		while [ $c -eq 0 ] ; do
+			if [ "$continue" != yes ] ; then
+				echo " "
+				echo "Model choices"
+				echo -n "$AVAILABLE_MODELS_LIST ? [return=$model_exist]==>"
+				read model
+			else
+				model=
+			fi
+			if [ -z "$model" ] ; then
+				model=$model_exist
+			fi
+			count=0
+			for modelx in `echo $model | sed 's/:/ /g'`
+			do
+				cc=0
+				c=0
+				for mdl in $AVAILABLE_MODELS_LIST
+				do
+					if [ "$modelx" = $mdl ] ; then
+						cc=1
+					fi	
+				done
+				if [ $cc -eq 0 ] ; then
+					break
+				fi
+				c=1
+				count=`expr $count + 1`
+			done
+			if [ $count -gt 1 ] ; then
+				couple=yes
+			fi
+		done
+	else
+		model=$model_exist
+	fi
+	grep model_exist= .hist >/dev/null 2>/dev/null
+	rc=$?
+	sed "s/model_exist=.*/model_exist=$model/g" .hist >tmp.$$
+	if [ $rc -eq 0 ] ; then
+		mv tmp.$$ .hist	
+	else
+		echo model_exist=$model >>.hist
+	fi
+fi

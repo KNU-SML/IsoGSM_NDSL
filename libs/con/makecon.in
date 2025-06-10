@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+if [ ! -z "$G_RSM_BIG_FILES_DIR" ] ; then
+  for file in `ls -d $G_RSM_BIG_FILES_DIR/con/*`
+  do
+    filex=`echo $file | sed 's!.*/!!g' | sed 's/ *//g'`
+    rm -f $filex
+#    echo ln -fs $file $filex
+	if [ $filex = CVS ] ; then
+		continue
+	fi
+    ln -fs $file $filex
+  done
+fi
+nfile=`ls -1 *.Z *.gz 2>/dev/null | wc -l`
+if [ $nfile -ge 1 ] ; then
+	for file in `ls *.Z *.gz `
+	do
+	  echo uncompressing $file
+	  gunzip -f $file
+	done
+fi
+#
+@LIBS_DIR@/con/tune.sh || exit 8
+@LIBS_DIR@/con/tunen.sh || exit 8
+if [ -s landsea.asc ] ; then
+  @LIBS_DIR@/con/landsea.sh || exit 8
+fi
+if [ -s eofs28126.asc ] ; then
+  @LIBS_DIR@/con/eofs.sh  || exit 8
+fi
+if [ -s divterrs2812645.asc ] ; then
+  @LIBS_DIR@/con/divterrs.sh  || exit 8
+fi
+#
+#  nhm
+#
+if [ -s nhm ] ; then
+	cd nhm
+	nfile=`ls -1 *.Z *.gz 2>/dev/null | wc -l`
+	if [ $nfile -ge 1 ] ; then 
+	for file in `ls *.Z *.gz`
+		do
+		  echo uncompressing $file
+		  gunzip -f $file
+		done
+	fi
+fi

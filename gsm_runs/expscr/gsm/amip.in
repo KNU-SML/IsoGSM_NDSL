@@ -1,0 +1,528 @@
+#insert-HEADER
+#
+#  This script integrates gcm with climatological daily sst as 
+#  a surface forcing (amip run).
+#
+#   1. Computes monthly mean and deletes daily files every month
+#   2. ftp the results to a specified sites
+#   3. Should be easily modified to run 'amip' type experiment.
+#
+set -a
+#
+# ---------------  User changeable parameters  -------------------------
+#
+# Change the following variable if you are running separate experiments
+# from the same directory
+#
+RUNNAME=a_000
+#
+# starting and ending forecast years
+#
+YYYY_START=1979
+YYYY_END=2001
+#
+# input atmosphereic states
+#
+INITIAL_SIG_PLATFORM=
+INITIAL_SIG_PROTOCOL=ln
+INITIAL_SIG=/net/raid4/kana/rerunarch/\$YYYY\$MM/ncep/anl/sig.anl.1979010100.ieee
+INITIAL_SFC=/net/raid4/kana/rerunarch/\$YYYY\$MM/ncep/anl/sfc.anl.1979010100.ieee
+INITIAL_SFC_FILE_TYPE=osu1
+#
+# sst, ice and snow specificatinos
+#
+# sst
+#
+SST_FTP=cp
+SST_PLATFORM=
+SST_ANL_T0=/net/raid4/kana/sfcanl/\$YYYY/sst.grib
+SST_ANL=/net/raid4/kana/sfcanl/\$YYYY/sst.grib
+#
+#  sea ice
+#
+# uncomment the following and modify to use observed or persistent sea ice
+#   ice is climatology in this example
+#
+ICE_PLATFORM=
+ICE_FTP=ln
+ICE_ANL_T0=
+ICE_ANL=@LIBS_DIR@/con/clim.ice.grib
+#
+#  snow
+#
+SNO_PLATFORM=
+SNO_FTP=
+SNO_ANL_T0=
+SNO_ANL=
+SCV_ANL_T0=
+SCV_ANL=
+#
+#  output for archive 
+#
+ARCHIVE_PLATFORM=
+ARCHIVE_FTP_PROTOCOL=
+ARCHIVE_DIR=
+#
+# Intervals of sfc execution, sigma output, sfc output and flx output
+#
+INTSFCX=24
+INTSIG=24
+INTSFC=24
+INTPOST=24
+INTRESTART=24
+INCHOUR=384
+#
+#  automatic restart of forecast from where it is ended before
+#
+FCST_RESTART=yes
+#
+#  ---------------------  below for expert user only -----------------
+#
+#
+# CHUNK_QSUB=yes to execute the integration piece meal to avoid
+# error exit due to time limit.  Do not forget to modify the script
+# name 
+#
+CHUNK_QSUB=no
+if [ $CHUNK_QSUB = yes ] ; then
+	SUBMIT_SCRIPT=@RUNSCR_DIR@/../amip
+	SUBMIT=@MPISUBMIT@
+	YYYY_INC=1
+fi
+#
+# If you wish, you may modify EXPDIR to /tmp directory and keep these
+# scripts on your permanent disk.
+#
+EXPDIR=@RUNS_DIR@/$RUNNAME
+#
+FTP_SIG=no
+FTP_SFC=no
+FTP_ZNL=no
+FTP_FLX=no
+FTP_DIA=no
+FTP_KEN=no
+FTP_PGB=no
+FTP_SGB=no
+FTP_FCSTOUT=no
+FTP_EXTVARS=no
+export FTP_SIG FTP_SFC FTP_ZNL FTP_FLX FTP_DIA FTP_KEN FTP_PGB FTP_SGB \
+	FTP_FCSTOUT FTP_EXTVARS
+#
+#  by changing the following, you can leave the files alone
+#
+FILES_TO_BE_KEPT=
+#FILES_TO_BE_KEPT='flx pgb znl dia ken sgb extvars'
+export FILES_TO_BE_KEPT
+#
+#  you can specify any grib file for averaging
+#
+FILES_TO_BE_AVERAGED='flx pgb'
+export FILES_TO_BE_AVERAGED
+#
+# -------  do not edit below  ------------------------------
+#
+set -x
+#
+mkdir -p $EXPDIR 2>/dev/null
+scrnam=`echo $0 | sed 's?.*/??g'`
+cp $0 $EXPDIR/0LOG.$scrnam
+cp ./mdlvars $EXPDIR/0LOG.mdlvars
+ls -l @MODEL_DIR@/bin >$EXPDIR/0LOG.bindates
+#
+INPUT_RESOLUTION=t@IJCAP@k@ILEVS@
+#
+FCST_NPES=@NPES@
+#
+LIST_OF_FILES='sig sfc znl flx dia ken pgb sgb fcstout extvars'
+export LIST_OF_FILES
+#
+rm ERROR.out 2>/dev/null
+echo "`date` $0: started" >>ERROR.out
+#
+#  Search the latest simulation year
+#
+YYYY=$YYYY_START
+MM=01
+DD=01
+HH=00
+while [ $YYYY -le $YYYY_END ] ; do
+	EXECDIR=$EXPDIR/$YYYY
+	mkdir -p $EXECDIR
+	cd $EXECDIR
+	if [ $? -ne 0 ] ; then
+		YYYY_START=$YYYY
+		break
+	fi
+	if [ -s sigit -a -s sigitdt -a -s sfci ] ; then
+		mody4=`expr $YYYY \/ 4`
+		mody4=`expr $mody4 \* 4`
+		if [ $mody4 -eq $YYYY ] ; then
+			endhour=`expr 24 \* 366`
+		else
+			endhour=`expr 24 \* 365`
+		fi
+		@LIBS_DIR@/etc/date  sigit >date.out || exit 8
+		read HH MM DD yyyy FH <date.out
+		rm date.out
+		if [ $FH -eq $endhour ] ; then
+			YYYY=`expr $YYYY + 1`
+			continue
+		else
+			YYYY_START=$YYYY
+			break
+		fi
+	else
+		YYYY_START=$YYYY
+		break
+	fi
+done
+#
+YYYY=$YYYY_START
+yyyy_end=$YYYY_END
+if [ $CHUNK_QSUB = yes ] ; then
+	yyyy_end=`expr $YYYY + $YYYY_INC`
+
+fi
+#
+coldstart=no
+while [ $YYYY -le $yyyy_end ] ; do
+	#
+	mkdir -p $EXPDIR/ini.$YYYY 2>/dev/null
+	YY=`echo $YYYY | cut -c3-4`
+	#
+	# Section 1.  takes sigma file, reset forecast hour to zero and modify
+	# initial dates accordingly.
+	#
+	YYYYM=`expr $YYYY - 1`
+	mody4=`expr $YYYYM \/ 4`
+	mody4=`expr $mody4 \* 4`
+	if [ $mody4 -eq $YYYYM ] ; then
+		endhour=`expr 24 \* 366`
+	else
+		endhour=`expr 24 \* 365`
+	fi
+	#
+	SIG_FILE=$EXPDIR/ini.$YYYY/model_initial_sig
+	SFC_FILE=$EXPDIR/ini.$YYYY/model_initial_sfc
+	if [ ! -s $SIG_FILE -o ! -s $SFC_FILE ] ; then
+		SIG_FILE=$EXPDIR/$YYYYM/sigit
+		SFC_FILE=$EXPDIR/$YYYYM/sfci
+		if [ ! -s $SIG_FILE -o ! -s $SFC_FILE ] ; then
+			if [ $YYYY -gt $YYYY_START ] ; then
+				echo "`date` $0:Start of year SIGMA AND/OR SFC file not found." >>ERROR.out
+				exit 8
+			fi
+			SIG_FILE=`eval echo $INITIAL_SIG`
+			SFC_FILE=`eval echo $INITIAL_SFC`
+			coldstart=yes
+			#
+			#  fetch sigma and sfc files
+			#
+			@RUNSCR_DIR@/fetchfile $SIG_FILE ./initial_sig_glb \
+				$INITIAL_SIG_PROTOCOL $INITIAL_SIG_PLATFORM || exit 8
+			@RUNSCR_DIR@/fetchfile $SFC_FILE ./initial_sfc_glb \
+				$INITIAL_SIG_PROTOCOL $INITIAL_SIG_PLATFORM || exit 8
+			#
+			# Conversion to binary
+			#
+			FILE_FORMAT=`echo $INITIAL_SIG | sed 's/.*\.//g'`
+			if [ "$FILE_FORMAT" != ascii -a \
+				"$FILE_FORMAT" != asc -a \
+				"$FILE_FORMAT" != ieee -a \
+				"$FILE_FORMAT" != ieee_dp -a \
+				"$FILE_FORMAT" != ieee_sgi -a \
+				"$FILE_FORMAT" != cray ] ; then
+				FILE_FORMAT=bin
+			fi
+			@LIBS_DIR@/etc/scnvrt gsm $INITIAL_SFC_FILE_TYPE \
+				@IJCAP@:@ILONF@:@ILATG@:@ILEVS@ \
+				$YYYY:-1:01:00:0 \
+				$FILE_FORMAT:bin initial_sig_glb:initial_sfc_glb \
+				initial_sig_bin:initial_sfc_bin || exit 8
+			#
+			# Change resolution
+			#
+			@RUNSCR_DIR@/chgr \
+					initial_sig_bin initial_sfc_bin \
+					$EXPDIR/ini.$YYYY/model_initial_sig \
+					$EXPDIR/ini.$YYYY/model_initial_sfc \
+					$INITIAL_SFC_FILE_TYPE || exit 8
+			#
+			@LIBS_DIR@/etc/date $EXPDIR/ini.$YYYY/model_initial_sig >date.$$ || exit 8
+			read ORIGHH ORIGMM ORIGDD ORIGYY ORIGFH <date.$$ ; rm date.$$
+			if [ $ORIGYY -lt 100 ] ; then
+				ORIGYYYY=`expr 1900 + $ORIGYY`
+			else
+				ORIGYYYY=$ORIGYY
+			fi
+			echo $ORIGHH $ORIGMM $ORIGDD $ORIGYY $ORIGFH
+		else
+			#
+			#  Reset year to initial year
+			#
+			@LIBS_DIR@/etc/date $SIG_FILE >date.$$ || exit 8
+			read ORIGHH ORIGMM ORIGDD ORIGYY ORIGFH <date.$$ ; rm date.$$
+			echo $ORIGHH $ORIGMM $ORIGDD $ORIGYY $ORIGFH
+			if [ $ORIGYY -lt 100 ] ; then
+				ORIGYYYY=`expr 1900 + $ORIGYY`
+			else
+				ORIGYYYY=$ORIGYY
+			fi
+			#
+			#  Reset initial date
+			#
+			@LIBS_DIR@/etc/incdte $ORIGYYYY $ORIGMM $ORIGDD $ORIGHH $ORIGFH >incdte.$$ || exit 8
+			read YYYY_RESET MM DD HH <incdte.$$ ; rm incdte.$$
+			if [ $YYYY_RESET -ne $YYYY ] ; then
+				echo Date Error.  YYYY_RESET=$YYYY_RESET   Should be $YYYY
+				echo "`date` $0: Date Error.  YYYY_RESET=$YYYY_RESET   Should be $YYYY" >>ERROR.out
+				exit 8
+			fi
+			if [ $MM != 01 -o $DD != 01 -o $HH != 00 ] ; then
+				echo Date Error.  MM=$MM DD=$DD HH=$HH.  Should be 01 01 00
+				echo "`date` $0: Date Error. MM=$MM DD=$DD HH=$HH.  Should be 01 01 00" >>ERROR.out
+				exit 8
+			fi
+			echo $YYYY $MM $DD $HH
+			@LIBS_DIR@/etc/scnvrt gsm @SFCFTYP@ \
+				@JCAP@:@LONF@:@LATG@:@LEVS@ \
+				$YYYY:$MM:$DD:$HH:0 \
+				bin:bin $SIG_FILE:$SFC_FILE \
+				$EXPDIR/ini.$YYYY/model_initial_sig:$EXPDIR/ini.$YYYY/model_initial_sfc || exit 8
+			#
+			cp $EXPDIR/$YYYYM/nfdr.restart EXPDIR/ini.$YYYY/nfdr.restart 2>/dev/null 
+		fi
+	fi
+	#
+	#  ftp get sst, sno and ice files
+	#
+	# sfc of the initial
+	#
+	for fld in sst sno scv ice
+	do
+		FLD=`echo $fld | tr '[a-z]' '[A-Z]'`
+		anl_t0=\$${FLD}_ANL_T0
+		anl_t0=`eval echo $anl_t0`
+		anl_t0=`eval echo $anl_t0`
+		anl=\$${FLD}_ANL
+		anl=`eval echo $anl`
+		anl=`eval echo $anl`
+		ftp=\$${FLD}_FTP
+		ftp=`eval echo $ftp`
+		platform=\$${FLD}_PLATFORM
+		platform=`eval echo $platform`
+		if [ -n "$anl_t0" ] ; then
+			if [ $ftp != ln ] ; then
+				if [ ! -s $EXPDIR/ini.$YYYY/$fld.grib ] ; then
+					@RUNSCR_DIR@/fetchfile  \
+						$anl $EXPDIR/ini.$YYYY/$fld.grib \
+						$ftp $platform || exit 8
+				fi
+				eval ${FLD}_GRB_T0=$EXPDIR/ini.$YYYY/$fld.grib
+			else
+				eval ${FLD}_GRB_T0=$anl_t0
+			fi
+		else
+			eval ${FLD}_GRB_T0=
+		fi
+		if [ -n "$anl" ] ; then
+			if [ $ftp != ln ] ; then
+				if [ ! -s $EXPDIR/ini.$YYYY/$fld.grib ] ; then
+					@RUNSCR_DIR@/fetchfile  \
+						$anl $EXPDIR/ini.$YYYY/$fld.grib \
+						$ftp $platform || exit 8
+				fi
+				eval ${FLD}_GRB=$EXPDIR/ini.$YYYY/$fld.grib
+			else
+				eval ${FLD}_GRB=$anl
+			fi
+		else
+			eval ${FLD}_GRB=
+		fi
+	done
+	if [ $coldstart = yes ] ; then
+		export SST_GRB_T0 SNO_GRB_T0 SCV_GRB_T0 ICE_GRB_T0
+		@RUNSCR_DIR@/sfc0 \
+		$EXPDIR/ini.$YYYY/model_initial_sfc sfco \
+		$INITIAL_SFC_FILE_TYPE || exit 8
+		mv sfco $EXPDIR/ini.$YYYY/model_initial_sfc
+	fi
+	#
+	# Section 2.  Forecast section
+	#
+	EXECDIR=$EXPDIR/$YYYY
+	mkdir -p $EXECDIR 2>/dev/null
+	cd $EXECDIR || exit 8
+	if [ -s sigit -a -s sigitdt -a -s sfci -a "$FCST_RESTART" = yes ];then
+		#
+		#  Restart
+		#
+		@LIBS_DIR@/etc/date sigit >date.out || exit 8
+		read HH MM DD yyyy FH <date.out
+		rm date.out
+		if [ $yyyy != $YYYY ] ; then
+			echo '$yyyy and $YYYY does not match'
+			echo yyyy=$yyyy YYYY=$YYYY
+			echo "`date` $0: $yyyy and $YYYY does not match" >>ERROR.out
+			exit 8
+		fi
+		#
+		@LIBS_DIR@/etc/fhour sigit >out || exit 8
+		read h <out
+		h=`expr $h`
+		echo hour in the sigit file = $h
+		if [ $h -lt 10 ];then h=0$h;fi
+		rm out
+	else
+		#
+		#  Initial start.
+		#
+		h=00
+		#
+		cp $EXPDIR/ini.$YYYY/model_initial_sig sigit || exit 8
+		cp $EXPDIR/ini.$YYYY/model_initial_sfc sfci || exit 8
+		cp $EXPDIR/ini.$YYYY/nfdr.restart nfdr.restart 2>/dev/null
+		cp sigit sigitdt || exit 8
+		cp sigit sig.ft$h || exit 8
+		cp sfci  sfc.ft$h || exit 8
+		#
+		@LIBS_DIR@/etc/date sigit >date.out || exit 8
+		read HH MM DD yyyy FH <date.out
+		rm date.out
+		#
+		#  pgb of the initial
+		#
+		if [ "@DOPOST@" = DEFINED ] ; then
+			@RUNSCR_DIR@/pgb $h $h 24 || exit 8
+		elif [ "@CATPGB@ " = DEFINED ] ; then
+			@LIBS_DIR@/etc/catpgb
+		fi
+	fi
+	#
+	mody4=`expr $YYYY \/ 4`
+	mody4=`expr $mody4 \* 4`
+	if [ $mody4 -eq $YYYY ] ; then
+		ENDHOUR=`expr 24 \* 366`
+	else
+		ENDHOUR=`expr 24 \* 365`
+	fi
+	#
+	endhour=$ENDHOUR
+	inchour=$INCHOUR
+	#
+	#  loop
+	#
+	xc=0
+	while [ $h -lt $endhour ] ; do
+	#
+		hx=`expr $h + $inchour`
+		if [ $hx -gt $endhour ] ; then
+			hx=$endhour
+		fi
+		if [ $hx -lt 10 ];then hx=0$hx;fi
+		#
+		echo "`date` fcst from fh=$h to $hx started" >>ERROR.out
+		#
+		#  Execute forecast
+		#
+		export SST_GRB SNO_GRB SCV_GRB ICE_GRB
+		@RUNSCR_DIR@/fcstparm $INCHOUR $ENDHOUR $INTSFCX \
+				$INTSIG:$INTSFC:$INTPOST:$INTRESTART || exit 8
+		#
+		@RUNSCR_DIR@/fcst || exit 8
+		#
+		# copy to restart files
+		#
+		cp sig.ft$hx sigit || exit 8
+		mv sigp.ft$hx sigitdt || exit 8
+		cp sfc.ft$hx sfci || exit 8
+		#
+		#  post processing of the forecasts (pgb and average)
+		#
+		if [ "@CATPGB@ " = yes ] ; then
+			@LIBS_DIR@/etc/catpgb
+		fi
+		archive_dir=`eval echo $ARCHIVE_DIR`
+		@RUNSCR_DIR@/post non_batch $EXECDIR \
+					$YYYY:$MM:$DD:$HH:$h:$hx:$INTSFCX \
+					$INTPOST $INTSIG $archive_dir $ARCHIVE_PLATFORM \
+					$ARCHIVE_FTP_PROTOCOL || exit 8
+		#
+		#  Delete old short archive files
+		#
+		rc=0
+		for filex in $FILES_TO_BE_KEPT
+		do
+			if [ $filex = pgb ] ; then
+				rc=1
+			fi
+		done
+		rd=0
+		for filex in $FILES_TO_BE_AVERAGED
+		do
+			if [ $filex = pgb ] ; then
+				rd=1
+			fi
+		done
+		keepsig=yes
+		if [ $rc -eq 0 -a $rd -eq 0 ] ; then
+			keepsig=no
+		fi
+		for file in $LIST_OF_FILES
+		do
+			FILE=`echo $file | tr '[a-z]' '[A-Z]'`
+			yn=\$FTP_$FILE
+			yn=`eval echo $yn`
+			if [ $yn = yes ] ; then
+				continue
+			fi
+			rc=0
+			for filex in $FILES_TO_BE_KEPT
+			do
+				if [ $filex = $file ] ; then
+					rc=1
+				fi
+			done
+			if [ $rc -eq 1 ] ; then
+				continue
+			fi
+			rc=0
+			for filex in $FILES_TO_BE_AVERAGED
+			do
+				if [ $filex = $file ] ; then
+					rc=1
+				fi
+			done
+			if [ $rc -eq 1 ] ; then
+				continue
+			fi
+			if [ $file = sig -a $keepsig = yes ] ; then
+				continue
+			fi
+			hxx=$hx
+			@RUNSCR_DIR@/delfile $file $h $hxx $INTSFC || exit 8
+		done
+		h=$hx
+	done
+	#
+	YYYY=`expr $YYYY + 1`
+	#
+	# clean-up
+	#
+	rm fcst.* fort.* post.* ftp.* scnvrt.*
+done
+echo "`date` $0: ended" >>ERROR.out
+if [ $CHUNK_QSUB = yes ] ; then
+	if [ $YYYY -le $YYYY_END  ] ; then
+		if [ -z "$SUBMIT" ] ; then
+			$SUBMIT_SCRIPT &
+		elif [ "$SUBMIT" = bsub ] ; then
+			$SUBMIT < $SUBMIT_SCRIPT
+		else
+			$SUBMIT $SUBMIT_SCRIPT
+		fi
+	else
+		echo "`date` $0: completed"
+	fi
+fi
+wait

@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+#  input year month day hour, returns forecast hour
+#
+if [ $# -ne 4 ] ; then
+	echo Usage: getft year month day hour
+	exit 8
+fi
+#
+dir=`echo $0 | sed 's?/[^/]*$??g'`
+currdir=`pwd`
+cd $dir
+ETC_DIR=`pwd`
+cd $currdir
+#
+year=$1
+month=$2
+day=$3
+hour=$4
+#
+$ETC_DIR/inchour $year 01 01 00 $year $month $day $hour

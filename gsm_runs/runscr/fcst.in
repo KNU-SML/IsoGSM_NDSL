@@ -1,0 +1,54 @@
+#!/bin/sh
+set -x
+#
+PROG=fcst
+#
+fh=`@LIBS_DIR@/etc/fhour sigit`
+#
+#  Execute forecast
+#
+ln -fs @MODEL_DIR@/bin/co2con           co2con
+ln -fs @MODEL_DIR@/bin/mtnvar           mtnvar
+ln -fs @LIBS_DIR@/con/o3prod.clim.asc        o3prod
+ln -fs @LIBS_DIR@/con/o3loss.clim.asc        o3loss
+ln -fs @LIBS_DIR@/con/tune.t42l18.amip.ewmrg tune
+ln -fs @LIBS_DIR@/con/gcmo3.asc              gcmo3
+ln -fs @LIBS_DIR@/con/flwdirGSWP2.one        flw
+ln -fs @MODEL_DIR@/bin/albaer.snl           albaer.snl
+rm -f $PROG.x
+
+if [ @MARCH@ = single -o @MARCH@ = thread ] ; then
+	executable=@MODEL_DIR@/bin/fcst_t@JCAP@k@LEVS@.x
+else
+	executable=@MODEL_DIR@/bin/fcst_t@JCAP@k@LEVS@_n$FCST_NPES.x
+fi
+if [ ! -s $executable ] ; then
+	echo $executable does not exist
+	exit 8
+fi
+ln -fs $executable $PROG.x
+
+here_dir=`pwd`
+if [ @MARCH@ = mpi -o @MARCH@ = hybrid ] ; then
+	@RUNSCR_DIR@/mpisub $PROG.x:$FCST_NPES:
+	cc=$?
+else
+	./$PROG.x 1>${PROG}out.ft$fh 2>&1
+	cc=$?
+fi
+if [ $cc -ne 0 ] ; then
+	echo "`date` $0: Execution failed." >>ERROR.out
+	exit 8
+fi
+grep 'NaN' fcstout.ft$fh
+if [ $? -eq 0 ]; then
+	echo "The run has NaN crushed !!!" >> ERROR.out
+	exit 8
+fi
+grep ' nan ' fcstout.ft$fh
+if [ $? -eq 0 ]; then
+	echo "The run has nan crushed !!!" >> ERROR.out
+	exit 8
+fi
+grep '<WARNING>:' fcstout.ft$fh >>ERROR.out
+exit 0

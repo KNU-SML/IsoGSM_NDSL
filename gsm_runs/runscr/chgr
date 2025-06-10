@@ -1,0 +1,56 @@
+#!/bin/sh
+set -x
+#
+if [ $# -ne 5 ] ; then
+	echo $0:  argument error
+	exit 8
+fi
+#
+# Change resolution
+#
+# $1 is input sigma file
+# $2 is input sfc file
+# $3 is output sigma file
+# $4 is output sfc file
+# $5 is input sfc file type (osu1 osu2 noa1 vic1)
+#
+#
+in_sig=$1
+in_sfc=$2
+out_sig=$3
+out_sfc=$4
+sfcftyp=$5
+#
+fnsporog=/rhome/yeong/test/svrtest/gsm/bin/orospc.smth
+lrep='.TRUE.'
+#
+PROG=chgr
+if [ linux = cray -o linux = t90 -o linux = t3e ] ; then
+	assign -R
+fi
+ln -fs $in_sig          fort.11
+ln -fs $in_sfc          fort.14
+ln -fs $fnsporog        fort.12
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/slmsk  fort.13
+ln -fs $out_sig         fort.51
+ln -fs $out_sfc         fort.52
+#
+cat >$PROG.parm <<EOF
+ &NAMCHGR
+ NIN=11,NOU=51,LTRN=.TRUE.,LNEW=.TRUE.,LREP=$lrep,
+ SFCFTYP='$sfcftyp',
+/
+EOF
+rm -f $PROG.x
+ln -fs /rhome/yeong/test/svrtest/gsm/bin/${PROG}.x $PROG.x
+./$PROG.x <$PROG.parm 1>$PROG.out 2>&1
+if [ $? -ne 0 ] ; then
+	echo "`date` $0: execution failed." >>ERROR.out
+  exit 8
+fi
+if [ ! -s $in_sfc ] ; then
+	rm $out_sfc
+fi
+#
+rm -f fort.[0-9]*
+exit 0

@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+#  dummy is added to create coupled run script, which is added at the end
+#
+#
+modely=$model
+if [ "$couple" = yes ] ; then
+	modely=$model:cpl
+fi
+count=1
+for modelx in `echo $modely | sed 's/:/ /g'`
+do
+	#
+	# prevent duplicate inquiry on domain and npe
+	#
+	NOASK=
+	if [ "$couple" = yes -a $modelx != cpl ] ; then
+		NOASK=on
+	fi
+	export NOASK
+	cd $currdir
+	runs_dirx=\$runs_dir_$count
+	runs_dirx=`eval echo $runs_dirx`
+	if [ "$runons" != s ] ; then
+		cd $runs_dirx
+		echo "Executing configure-scr in $runs_dirx"
+		if [ "$couple" != yes -o \( "$couple" = yes -a "$modelx" = cpl \) ] ; then
+			./configure-scr $runscript || exit 8
+			echo "$modelx: runscript generation complete.  cd to $runs_dirx and launch $runscript"
+		else
+			./configure-scr || exit 8
+		fi
+	fi
+	count=`expr $count + 1`
+done
+#
+cd $currdir

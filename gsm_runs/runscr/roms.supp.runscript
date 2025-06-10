@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+#  create ocean_$roms_application file
+#
+echo "MyAppCPP=$ROMS_APPLICATION" >>scrvars
+#
+#  factorize NPES
+#
+echo ROMS_NPES=$_npes_
+rootNPES=`echo $_npes_ | awk '{print sqrt($1)}' | cut -d'.' -f1`
+NtileI=$rootNPES
+NtileJ=`expr $_npes_ \/ $NtileI`
+ROMS_NPES=`expr $NtileI \* $NtileJ`
+echo NtileI=$NtileI NtileJ=$NtileJ ROMS_NCPUS=$ROMS_NPES
+#
+echo "NtileI=$NtileI" >>scrvars
+echo "NtileJ=$NtileJ" >>scrvars
+echo "ROMS_NPES=$ROMS_NPES" >> scrvars
+#

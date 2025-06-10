@@ -1,0 +1,31 @@
+#!/bin/sh
+count=1
+for modelx in `echo $model | sed 's/:/ /g'`
+do
+	modl=$modelx
+	if [ $modelx = crsm ] ; then
+		modl=rsm
+	fi
+	if [ -s .hist ] ; then
+		res_num_existx=`grep "res_num_exist_$count=" .hist | cut -d"=" -f2`
+		eval res_num_exist_$count=$res_num_existx
+	fi
+	count=`expr $count + 1`
+done
+#
+count=1
+for modelx in `echo $model | sed 's/:/ /g'`
+do
+	. ./instscr/get_${modelx}_res
+	res_numx=\$res_num_$count
+	res_numx=`eval echo $res_numx`
+	grep res_num_exist_$count= .hist >/dev/null 2>/dev/null
+	rc=$?
+	sed "s/res_num_exist_$count=.*/res_num_exist_$count=$res_numx/g" .hist >tmp.$$
+	if [ $rc -eq 0 ] ; then
+		mv tmp.$$ .hist	
+	else
+		echo res_num_exist_$count=$res_numx >>.hist
+	fi
+	count=`expr $count + 1`
+done

@@ -1,0 +1,33 @@
+MACHINE = @MACHINE@
+SHELL = @SHELL@
+RM = @RM@
+CD = @CD@
+MKDIR = @MKDIR@
+MAKE = @MAKE@
+
+LIB_DIR = @LIBS_DIR@/lib
+
+LIBS = @W3LIB_DIR@/w3lib.a ncaru/libncaru.a modelib/modelib.a @BUFRLIB_DIR@/bufr.a
+
+all : ${LIBS}
+
+@W3LIB_DIR@/w3lib.a :
+	${CD} @W3LIB_DIR@ ; ${MAKE} || exit 8
+
+@BUFRLIB_DIR@/bufr.a :
+	${CD} @BUFRLIB_DIR@ ; ${MAKE} || exit 8
+
+ncaru/libncaru.a :
+	${CD} ncaru ; ${MAKE} install || exit 8
+
+modelib/modelib.a :
+	${CD} modelib ; ${MAKE} || exit 8
+
+clean :
+	- ${RM} *.a
+	${CD} @W3LIB_DIR@ ; ${MAKE} clean
+	${CD} modelib ; ${MAKE} clean
+	${CD} ncaru ; ${MAKE} clean
+	if [ -s @BUFRLIB_DIR@/Makefile ] ; then \
+	  ${CD} @BUFRLIB_DIR@ ; ${MAKE} clean ; \
+	fi
